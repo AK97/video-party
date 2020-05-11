@@ -1,0 +1,27 @@
+#partyContainer {
+	width:100%;
+	top:0;left:0;
+	position:absolute;
+	outline:2px solid;
+	display:table;
+}
+
+
+#videoContainer {
+	width: 80%;
+	position:absolute;
+}
+
+.video-js {
+	width:100%;
+	position:absolute;
+}
+
+#chatBox {
+	width:20%;
+	position:absolute;
+	right:0;
+}
+#chats {
+	list-style-type:none;
+}
