@@ -1,0 +1,25 @@
+{
+  "name": "video-party",
+  "version": "0.0.1",
+  "description": "video file streamer for simultaneous viewing",
+  "dependencies": {
+    "express": "^4.17.1",
+    "log": "^6.0.0",
+    "socket.io": "^2.3.0"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AK97/video-party.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AK97/video-party/issues"
+  },
+  "homepage": "https://github.com/AK97/video-party#readme"
+}
