@@ -11,16 +11,28 @@ var port = 69;
 
 var currentStatus = [0, true];
 
+var nicknames = {};
+
 app.use('/styles',express.static(__dirname + '/styles')); //provide client with (static) stylesheets
 
 io.on('connection', (socket) => {
 	console.log('user joined with ID ' + socket.id)
+  nicknames[socket.id] = "Anonymous";
 	socket.emit('statusUpdate', currentStatus);
 	socket.on('actionPerform', (videoStatus) => {
 		currentStatus = videoStatus;
 		console.log('user ' + socket.id + ' changed video status to ' + videoStatus);
 		io.emit('statusUpdate', currentStatus);
 	});
+  socket.on('name set', (nick) => {
+    console.log('user ' +socket.id+ ' sets name to ' + nick); //print the chat message event
+    nicknames[socket.id] = nick;
+  });
+  socket.on('chat sent', (msg) => {
+    console.log('message send by ' + socket.id + ': ' + msg); //print the chat message event
+    formatted_msg = '['+nicknames[socket.id]+']'+msg;
+    io.emit('chat dist', formatted_msg); //send message to everyone including sender
+  });
 	socket.on('disconnect', () => {
 		console.log('user disconnected with id ' + socket.id);
 	})

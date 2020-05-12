@@ -1,51 +1,77 @@
 <!doctype html>
 <html>
 <head>
-  <title>Video Party</title>
-  <link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" />
-  <link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet">
-  <link href="styles/style.css" rel="stylesheet">
+	<title>Video Party</title>
+	<link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" />
+	<link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet">
+	<link href="styles/style.css" rel="stylesheet">
 </head>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 <script src="https://vjs.zencdn.net/7.7.6/video.js"></script>
 <script>
-  $(function () {
-    var socket = io();
+	$(function () {
+		var socket = io();
 
-    socket.on('statusUpdate', (newStatus) => {
-      console.log('received update from server')
-      console.log(newStatus);
-      videojs('video').currentTime(newStatus[0]);
-      if (videojs('video').paused()==false && newStatus[1]==true) {
-        videojs('video').pause();
-      }
-      else if (videojs('video').paused()==true && newStatus[1]==false) {
-        videojs('video').play();
-      }
-    })
+		socket.on('statusUpdate', (newStatus) => {
+			console.log('received update from server')
+			console.log(newStatus);
+			videojs('video').currentTime(newStatus[0]);
+			if (videojs('video').paused()==false && newStatus[1]==true) {
+				videojs('video').pause();
+			}
+			else if (videojs('video').paused()==true && newStatus[1]==false) {
+				videojs('video').play();
+			}
+		})
 
-    $('.video-js,.vjs-slider,.vjs-progress-control').on("click", function(e) {
-      var update = [videojs('video').currentTime(), videojs('video').paused()];
-      console.log('sending update to server: ' + update);
-      socket.emit('actionPerform', update);
-    });
-  });
+		$('.video-js,.vjs-slider,.vjs-progress-control').on("click", function(e) {
+			var update = [videojs('video').currentTime(), videojs('video').paused()];
+			console.log('sending update to server: ' + update);
+			socket.emit('actionPerform', update);
+		});
+
+		$('#nameEntry').submit(function(e){
+			e.preventDefault(); // prevents page reloading
+			socket.emit('name set', $('#n').val());
+			$('#nameEntry').remove();
+			return false;
+		});
+		$('#chatInput').submit(function(e){
+			e.preventDefault(); // prevents page reloading
+			socket.emit('chat sent', $('#m').val()); //when a user sends a message, send it to server as 'chat sent' event
+			$('#m').val('');
+			return false;
+		});
+		socket.on('chat dist', function(msg){
+			$('#chats').append($('<li>').text(msg));
+		});
+
+	});
 </script>
 
 <body>
 
 <div id="partyContainer">
-  <div id="videoContainer">
-    <video controls id="video" class="video-js vjs-theme-sea" data-setup="{}">
-    <source src="/video" type="video/mp4">
-    </video>
-  </div>
+	<div id="videoContainer">
+		<video controls id="video" class="video-js vjs-theme-sea" data-setup="{}">
+		<source src="/video" type="video/mp4">
+		</video>
+	</div>
 
-  <div id="chatBox">
-    <ul id="chats"><h2>CHAT</h2><li>test msg 1</li><li>test2</li></ul>
-  </div>
+	<div id="chatBox">
+		<center><h2>CHAT</h2></center>
+		<div id="chatHolder">
+			<ul id="chats"></ul>
+		</div>
+		<form id="nameEntry" action="">
+    	<input id="n" autocomplete="off" placeholder="Enter name" minlength="1" maxlength="16" />
+  	</form>
+		<form id="chatInput" action="">
+    	<input id="m" autocomplete="off" placeholder="Send a message" />
+  	</form>
+	</div>
 </div>
 </body>
 

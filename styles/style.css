@@ -1,9 +1,16 @@
+body {
+	background-color: #222222;
+}
+h2 {
+	color:yellow;
+}
+
 #partyContainer {
 	width:100%;
 	top:0;left:0;
 	position:absolute;
-	outline:2px solid;
-	display:table;
+	height:100%;
+	background-color:black;
 }
 
 
@@ -14,14 +21,47 @@
 
 .video-js {
 	width:100%;
-	position:absolute;
 }
 
 #chatBox {
-	width:20%;
+	width:19%;
 	position:absolute;
-	right:0;
+	left:80%;
+	height:95%;
+	max-height:95%;
+}
+#nameEntry {
+	margin-left: 15px;
+	bottom:60px;
+	position:absolute;
+	width:100%;
+}
+#chatInput {
+	margin-left: 15px;
+	bottom:25px;
+	position:absolute;
+	width:100%;
 }
 #chats {
 	list-style-type:none;
+	color: white;
+	word-wrap: auto;
+	overflow:scroll;
+}
+#chatHolder {
+	max-height: 80%;
+	overflow-y: scroll;
+	word-wrap: auto;
+}
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;   Optional: just make scrollbar invisible 
+}
+/*::-webkit-scrollbar-thumb {
+    background: #FF0000;
+}*/
+
+#m,#n {
+	width:90%;
+	font-size: 20px;
 }
