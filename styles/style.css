@@ -47,11 +47,15 @@ h2 {
 	color: white;
 	word-wrap: auto;
 	overflow:scroll;
+	display:flex;
+	flex-direction:column-reverse;
 }
 #chatHolder {
-	max-height: 80%;
+	max-height: calc(95% - 100px);
 	overflow-y: scroll;
 	word-wrap: auto;
+	display:flex;
+	flex-direction:column-reverse;
 }
 ::-webkit-scrollbar {
     width: 0px;

@@ -45,7 +45,7 @@
 			return false;
 		});
 		socket.on('chat dist', function(msg){
-			$('#chats').append($('<li>').text(msg));
+			$('#chats').prepend($('<li>').text(msg));
 		});
 
 	});
@@ -69,7 +69,7 @@
     	<input id="n" autocomplete="off" placeholder="Enter name" minlength="1" maxlength="16" />
   	</form>
 		<form id="chatInput" action="">
-    	<input id="m" autocomplete="off" placeholder="Send a message" />
+    	<input id="m" autocomplete="off" placeholder="Send a message" minlength="1" />
   	</form>
 	</div>
 </div>

@@ -29,9 +29,11 @@ io.on('connection', (socket) => {
     nicknames[socket.id] = nick;
   });
   socket.on('chat sent', (msg) => {
-    console.log('message send by ' + socket.id + ': ' + msg); //print the chat message event
-    formatted_msg = '['+nicknames[socket.id]+']'+msg;
-    io.emit('chat dist', formatted_msg); //send message to everyone including sender
+    if (msg.trim().length !== 0) {
+      console.log('message send by ' + socket.id + ': ' + msg); //print the chat message event
+      formatted_msg = '['+nicknames[socket.id]+'] '+msg;
+      io.emit('chat dist', formatted_msg); //send message to everyone including sender
+    }
   });
 	socket.on('disconnect', () => {
 		console.log('user disconnected with id ' + socket.id);
