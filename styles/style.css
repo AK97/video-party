@@ -1,5 +1,5 @@
 body {
-	background-color: #222222;
+	background-color: black;
 }
 h2 {
 	color:yellow;
@@ -21,6 +21,7 @@ h2 {
 
 .video-js {
 	width:100%;
+	position:absolute;
 }
 
 #chatBox {
@@ -33,13 +34,13 @@ h2 {
 #nameEntry {
 	margin-left: 15px;
 	bottom:60px;
-	position:absolute;
+	position:fixed;
 	width:100%;
 }
 #chatInput {
 	margin-left: 15px;
 	bottom:25px;
-	position:absolute;
+	position:fixed;
 	width:100%;
 }
 #chats {

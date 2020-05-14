@@ -9,16 +9,24 @@ var log = new Log('info');
 
 var port = 69;
 
+function currentTime() { //returns current time in "[HH:MM] " 24hr format (string)
+  var d = new Date();
+  return '['+d.toTimeString().substr(0,5)+'] ';
+}
+
 var currentStatus = [0, true];
 
 var nicknames = {};
+
+var all_messages = []; //there needs to be some kind of room instantiation for this to make sense in the future
 
 app.use('/styles',express.static(__dirname + '/styles')); //provide client with (static) stylesheets
 
 io.on('connection', (socket) => {
 	console.log('user joined with ID ' + socket.id)
   nicknames[socket.id] = "Anonymous";
-	socket.emit('statusUpdate', currentStatus);
+  socket.emit('messagePopulate', all_messages); //give joiner complete message history
+	socket.emit('statusUpdate', currentStatus); //catchup the joiner to position in video
 	socket.on('actionPerform', (videoStatus) => {
 		currentStatus = videoStatus;
 		console.log('user ' + socket.id + ' changed video status to ' + videoStatus);
@@ -31,7 +39,8 @@ io.on('connection', (socket) => {
   socket.on('chat sent', (msg) => {
     if (msg.trim().length !== 0) {
       console.log('message send by ' + socket.id + ': ' + msg); //print the chat message event
-      formatted_msg = '['+nicknames[socket.id]+'] '+msg;
+      formatted_msg = currentTime() + nicknames[socket.id] + ': ' + msg;
+      all_messages.push(formatted_msg);
       io.emit('chat dist', formatted_msg); //send message to everyone including sender
     }
   });

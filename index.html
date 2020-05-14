@@ -48,6 +48,12 @@
 			$('#chats').prepend($('<li>').text(msg));
 		});
 
+		socket.on('messagePopulate', function(messages) {
+			for (i in messages) {
+				$('#chats').prepend($('<li>').text(messages[i]));
+			}
+		});
+
 	});
 </script>
 
