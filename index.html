@@ -13,72 +13,15 @@
 <script>
 	$(function () {
 		var socket = io();
-
-		socket.on('statusUpdate', (newStatus) => {
-			console.log('received update from server')
-			console.log(newStatus);
-			videojs('video').currentTime(newStatus[0]);
-			if (videojs('video').paused()==false && newStatus[1]==true) {
-				videojs('video').pause();
-			}
-			else if (videojs('video').paused()==true && newStatus[1]==false) {
-				videojs('video').play();
-			}
-		})
-
-		$('.video-js,.vjs-slider,.vjs-progress-control').on("click", function(e) {
-			var update = [videojs('video').currentTime(), videojs('video').paused()];
-			console.log('sending update to server: ' + update);
-			socket.emit('actionPerform', update);
-		});
-
-		$('#nameEntry').submit(function(e){
-			e.preventDefault(); // prevents page reloading
-			socket.emit('name set', $('#n').val());
-			$('#nameEntry').remove();
-			return false;
-		});
-		$('#chatInput').submit(function(e){
-			e.preventDefault(); // prevents page reloading
-			socket.emit('chat sent', $('#m').val()); //when a user sends a message, send it to server as 'chat sent' event
-			$('#m').val('');
-			return false;
-		});
-		socket.on('chat dist', function(msg){
-			$('#chats').prepend($('<li>').text(msg));
-		});
-
-		socket.on('messagePopulate', function(messages) {
-			for (i in messages) {
-				$('#chats').prepend($('<li>').text(messages[i]));
-			}
-		});
-
 	});
 </script>
 
 <body>
 
-<div id="partyContainer">
-	<div id="videoContainer">
-		<video controls id="video" class="video-js vjs-theme-sea" data-setup="{}">
-		<source src="/video" type="video/mp4">
-		</video>
-	</div>
-
-	<div id="chatBox">
-		<center><h2>CHAT</h2></center>
-		<div id="chatHolder">
-			<ul id="chats"></ul>
-		</div>
-		<form id="nameEntry" action="">
-    	<input id="n" autocomplete="off" placeholder="Enter name (press enter)" minlength="1" maxlength="16" />
-  	</form>
-		<form id="chatInput" action="">
-    	<input id="m" autocomplete="off" placeholder="Send a message" minlength="1" />
-  	</form>
-	</div>
+<div id="setupContainer">
+	
 </div>
+
 </body>
 
 </html>
