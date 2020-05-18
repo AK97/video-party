@@ -1,72 +1,26 @@
-body {
+html,body {
+	height:100%;
+}
+
+.chatbox {
+    overflow-y: scroll;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE */
+}
+.chatbox::-webkit-scrollbar { /* WebKit */
+    width: 0;
+    height: 0;
+}
+
+#chats {
+	list-style-type: none;
+}
+
+.media_container {
 	background-color: black;
 }
-h2 {
-	color:yellow;
-}
 
-#partyContainer {
-	width:100%;
-	top:0;left:0;
-	position:absolute;
-	height:100%;
-	background-color:black;
-}
-
-
-#videoContainer {
-	width: 80%;
-	position:absolute;
-}
-
-.video-js {
-	width:100%;
-	position:absolute;
-}
-
-#chatBox {
-	width:19%;
-	position:absolute;
-	left:80%;
-	height:95%;
-	max-height:95%;
-}
-#nameEntry {
-	margin-left: 15px;
-	bottom:60px;
-	position:fixed;
-	width:100%;
-}
-#chatInput {
-	margin-left: 15px;
-	bottom:25px;
-	position:fixed;
-	width:100%;
-}
-#chats {
-	list-style-type:none;
-	color: white;
-	word-wrap: auto;
-	overflow:scroll;
-	display:flex;
-	flex-direction:column-reverse;
-}
-#chatHolder {
-	max-height: calc(95% - 100px);
-	overflow-y: scroll;
-	word-wrap: auto;
-	display:flex;
-	flex-direction:column-reverse;
-}
-::-webkit-scrollbar {
-    width: 0px;
-    background: transparent;   Optional: just make scrollbar invisible 
-}
-/*::-webkit-scrollbar-thumb {
-    background: #FF0000;
-}*/
-
-#m,#n {
-	width:90%;
-	font-size: 20px;
+.chat_container {
+	background-color: #111111;
+	color: #d3d3d3;
 }

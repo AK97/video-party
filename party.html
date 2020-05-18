@@ -5,11 +5,14 @@
 	<link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" />
 	<link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet">
 	<link href="styles/style.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
 </head>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 <script src="https://vjs.zencdn.net/7.7.6/video.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script> -->
+<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script> -->
 <script>
 	$(function () {
 		var socket = io();
@@ -45,12 +48,12 @@
 			return false;
 		});
 		socket.on('chat dist', function(msg){
-			$('#chats').prepend($('<li>').text(msg));
+			$('#chats').append($('<li>').text(msg));
 		});
 
 		socket.on('messagePopulate', function(messages) {
 			for (i in messages) {
-				$('#chats').prepend($('<li>').text(messages[i]));
+				$('#chats').append($('<li>').text(messages[i]));
 			}
 		});
 
@@ -58,8 +61,45 @@
 </script>
 
 <body>
+<div class="container-fluid h-100">
+	<div class="row h-100">
+		<div class="col-2 h-100 p-0 flex-column d-flex chat_container">
+			<h1 class="text-center">CHAT</h1>
+			<div class="flex-grow-1 pl-3 pt-2 d-flex flex-column-reverse chatbox">
+				<ul id="chats" class="p-0">
+				</ul>
+			</div>
 
-<div id="partyContainer">
+			<div class="pl-3 pr-3 pt-2 pb-2">
+				<div class="input-group">
+					<form id="nameEntry" class="input-group">
+						<input id="n" type="text" class="form-control" placeholder="Enter name" autocomplete="off" minlength="1" maxlength="24">
+						<div class="input-group-append">
+							<button class="btn btn-outline-secondary" type="submit">Submit</button>
+						</div>
+					</form>
+				</div>
+				
+				<div class="input-group mb-1 mt-1">
+					<form id="chatInput" class="input-group">
+						<input id="m" type="text" class="form-control" placeholder="Send a message" autocomplete="off" minlength="1">
+						<div class="input-group-append">
+							<button class="btn btn-outline-secondary" type="submit">Send</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-10 media_container mh-100">
+			<video controls id="video" class="video-js vjs-theme-sea vjs-fill" data-setup="{}">
+				<source src="/video" type="video/mp4">
+			</video>
+		</div>
+	</div>
+</div>
+
+<!-- <div id="partyContainer">
 	<div id="videoContainer">
 		<video controls id="video" class="video-js vjs-theme-sea" data-setup="{}">
 		<source src="/video" type="video/mp4">
@@ -73,12 +113,14 @@
 		</div>
 		<form id="nameEntry" action="">
     	<input id="n" autocomplete="off" placeholder="Enter name (press enter)" minlength="1" maxlength="16" />
-  	</form>
+  		</form>
 		<form id="chatInput" action="">
     	<input id="m" autocomplete="off" placeholder="Send a message" minlength="1" />
-  	</form>
+  		</form>
 	</div>
-</div>
+</div> -->
+
+
 </body>
 
 </html>
