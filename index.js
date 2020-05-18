@@ -4,9 +4,6 @@ var http = require("http").createServer(app);
 var io = require("socket.io")(http);
 var fs = require('fs');
 
-var Log = require('log');
-var log = new Log('info');
-
 var port = 69;
 
 function currentTime() { //returns current time in "[HH:MM] " 24hr format (string)
