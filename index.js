@@ -5,92 +5,178 @@ var app = express();
 var http = require("http").createServer(app);
 var io = require("socket.io")(http);
 var fs = require('fs');
+var session = require('express-session');
 
+const url = 'localhost:69/';
 var port = 69;
 
-//// Helper Functions ////
+//// Helper Functions & Classes ////
 
 function currentTime() { //returns current time in "[HH:MM] " 24hr format (string)
-  var d = new Date();
-  return '['+d.toTimeString().substr(0,5)+'] ';
+    var d = new Date();
+    return '['+d.toTimeString().substr(0,5)+'] ';
 }
 
-//// Global Vars & Data ////
+function generatePartyCode() {
+	return (
+		'vp' + Math.random().toString(36).substring(2, 15)
+	);
+}
 
-var currentStatus = [0, true];
-var nicknames = {};
-var all_messages = []; //there needs to be some kind of room instantiation for this to make sense in the future
+class Party {
+    constructor(host, file) {
+        this.host = host; //host's session ID
+        this.filepath = file; //filepath on host's computer
+        this.code = generatePartyCode();
+        this.members = {}; //store members by socketid:username because nicknames aren't important enough to track accross refreshes. allowing people to rename themself is okay.
+        this.currentStatus = [0,true];
+
+        this.message_log = []; //complete message history
+        this.message_log.push('Invite friends using the party code!');
+        this.message_log.push('Party Code: ' + this.code);
+    }
+}
+
+//// Database ////
+
+var parties = {
+    'vptestroom1':new Party(),
+    'vptestroom2':new Party()
+}; //contains all active rooms as partyid:Party
 
 //// Express Functions ////
 
 app.use('/styles',express.static(__dirname + '/styles')); //provide client with (static) stylesheets
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/party.html'); //send party.html when homepage is requested
-  //this will change to index html once index is built to be a room creating page
+sessionDef = session({
+	secret: 'secret-key', //apparently this should be some actual secret string. not sure why but eventually we can make it something random.
+	saveUninitialized: true,
+	resave: true,
 });
 
-app.get('/video', (req, res) => { //upon request for /video...
-  var path = 'media/movie.mp4';
-  var fileSize = fs.statSync(path).size; //get the size of the video
-  var range = req.headers.range;
-  console.log(req.headers);
-  if (range) {
-    //the range property is as a string="bytes=0-" where 0 corresponds to which part of the video is being requested
-  	var parts = range.replace(/bytes=/, "").split("-"); //string of number that tells which byte to start loading at
-  	var start = parseInt(parts[0], 10); //convert string to int (base 10)
-  	var end = fileSize-1; //in bytes; so could be like 1000000 to load 1mb at a time
-  	var chunkSize = (end-start)+1;
-    var head = {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunkSize,
-        'Content-Type': 'video/mp4',
-      }
-    res.writeHead(206, head);
-    fs.createReadStream(path, {start,end}).pipe(res);
-  }
-  else { //starts here first time
-    var head = {
-      'Content-Length': fileSize,
-      'Content-Type': 'video/mp4',
+app.use(sessionDef);
+
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+app.get('/vp*', (req, res) => {
+    let attempt = req.path.substr(1);
+    if (Object.keys(parties).includes(attempt)) {
+        res.sendFile(__dirname + '/party.html');
     }
-    res.writeHead(200, head)
-    fs.createReadStream(path).pipe(res) //open the video file as a readable stream then "pipe" it to the response object (which goes to the client)
-  }
+    else {
+        res.send('Sorry, this party does not exist');
+    }
+});
+
+
+app.get('/video*', (req, res) => { //upon request for /video(partyurl) -- this will be req's by a partyroom's video tag
+    var path = 'media/movie.mp4';
+    var fileSize = fs.statSync(path).size; //get the size of the video
+    var range = req.headers.range;
+    //console.log(req.headers);
+    if (range) {
+        //the range property is as a string="bytes=0-" where 0 corresponds to which part of the video is being requested
+        var parts = range.replace(/bytes=/, "").split("-"); //string of number that tells which byte to start loading at
+        var start = parseInt(parts[0], 10); //convert string to int (base 10)
+        var end = fileSize-1; //in bytes; so could be like 1000000 to load 1mb at a time
+        var chunkSize = (end-start)+1;
+        var head = {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize,
+            'Content-Type': 'video/mp4',
+        }
+        res.writeHead(206, head);
+        fs.createReadStream(path, {start,end}).pipe(res);
+    }
+    else { //starts here first time
+        var head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+        }
+        res.writeHead(200, head)
+        fs.createReadStream(path).pipe(res) //open the video file as a readable stream then "pipe" it to the response object (which goes to the client)
+    }
 });
 
 //// Socket Functions ////
 
-io.on('connection', (socket) => {
-	console.log('user joined with ID ' + socket.id)
-  nicknames[socket.id] = "Anonymous";
-  socket.emit('messagePopulate', all_messages); //give joiner complete message history
-	socket.emit('statusUpdate', currentStatus); //catchup the joiner to position in video
-	socket.on('actionPerform', (videoStatus) => {
-		currentStatus = videoStatus;
-		console.log('user ' + socket.id + ' changed video status to ' + videoStatus);
-		io.emit('statusUpdate', currentStatus);
-	});
-  socket.on('name set', (nick) => {
-    console.log('user ' +socket.id+ ' sets name to ' + nick); //print the chat message event
-    nicknames[socket.id] = nick;
-  });
-  socket.on('chat sent', (msg) => {
-    if (msg.trim().length !== 0) {
-      console.log('message send by ' + socket.id + ': ' + msg); //print the chat message event
-      formatted_msg = currentTime() + nicknames[socket.id] + ': ' + msg;
-      all_messages.push(formatted_msg);
-      io.emit('chat dist', formatted_msg); //send message to everyone including sender
-    }
-  });
-	socket.on('disconnect', () => {
-		console.log('user disconnected with id ' + socket.id);
-	})
+var indexsocket = io.of('/indexns'); //clientside: socket = io('/home');
+var partysocket = io.of('/partyns'); //this namespace is for all game rooms. each will have its own socket room and role rooms.
+
+//putting the express session into socket context
+io.use(function(socket, next) {
+	sessionDef(socket.request, socket.request.res || {}, next);
 });
 
+indexsocket.on('connection', (socket) => {
+    console.log('user reached homepage with session ID' + socket.request.session.id);
 
+    socket.on('join party', (code) => {
+        //check if exists then instruct a redirect
+        console.log(parties);
+        console.log(parties[code])
+        if (parties[code]) {
+            socket.emit('go to party', code)
+        }
+        else {
+            socket.emit('join error', 'Sorry, that is an invalid code');
+        }
+    });
+
+    socket.on('create party', (file) => {
+        let host = socket.request.session.id;
+        let party = new Party(host, file);
+        parties[party.code] = party;
+        socket.emit('go to party', url+party.code);
+        //if filesize is under limit and the format is mp4
+        // else {
+        //     socket.emit('create error', 'Sorry, only mp4 files up to 5GB are allowed');
+        // }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('user disconnected with id ' + socket.request.session.id);
+    });
+
+});
+
+partysocket.on('connection', (socket) => {
+    console.log('user reached a party page with socket ID ' + socket.id)
+    let attemptedConnect = socket.handshake.headers.referer.toString(); //not for use beyond next line
+    let roomToConnect = attemptedConnect.split('/').pop();
+    
+    //join chat room
+    socket.join(roomToConnect);
+    parties[roomToConnect].members[socket.id] = "Anonymous";
+
+    socket.emit('messagePopulate', parties[roomToConnect].message_log); //give joiner complete message history
+    // commented out until client server updown video implementation
+    // socket.emit('statusUpdate', currentStatus); //catchup the joiner to position in video
+    // socket.on('actionPerform', (videoStatus) => {
+    //     currentStatus = videoStatus;
+    //     console.log('user ' + socket.id + ' changed video status to ' + videoStatus);
+    //     partysocket.to(roomToConnect).emit('statusUpdate', currentStatus);
+    // });
+    socket.on('name set', (nick) => {
+        console.log('user ' +socket.id+ ' sets name to ' + nick); //print the chat message event
+        parties[roomToConnect].members[socket.id] = nick;
+    });
+    socket.on('chat sent', (msg) => {
+        if (msg.trim().length !== 0) {
+            console.log('message sent by ' + socket.id + ': ' + msg); //print the chat message event
+            formatted_msg = currentTime() + parties[roomToConnect].members[socket.id] + ': ' + msg;
+            parties[roomToConnect].message_log.push(formatted_msg);
+            partysocket.to(roomToConnect).emit('chat dist', formatted_msg); //send message to everyone including sender
+        }
+    });
+    socket.on('disconnect', () => {
+        console.log('user disconnected with socket id ' + socket.id);
+    })
+});
 
 http.listen(port, () => {
-  console.log('listening on *:'+port);
+    console.log('listening on *:'+port);
 });

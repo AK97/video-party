@@ -15,7 +15,7 @@
 <!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script> -->
 <script>
 	$(function () {
-		var socket = io();
+		var socket = io('/partyns');
 
 		socket.on('statusUpdate', (newStatus) => {
 			console.log('received update from server')
@@ -50,7 +50,6 @@
 		socket.on('chat dist', function(msg){
 			$('#chats').append($('<li>').text(msg));
 		});
-
 		socket.on('messagePopulate', function(messages) {
 			for (i in messages) {
 				$('#chats').append($('<li>').text(messages[i]));

@@ -5,17 +5,37 @@
 	<link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" />
 	<link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet">
 	<link href="styles/style.css" rel="stylesheet">
-	<link href="styles/style.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
 </head>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
 <!-- <script src="https://vjs.zencdn.net/7.7.6/video.js"></script> -->
 <script>
 	$(function () {
-		var socket = io();
-		
+        bsCustomFileInput.init()
+        var socket = io('/indexns');
+        $('#fileEntryForm').submit(function(e) {
+            e.preventDefault();
+            //socket emit file
+        });
+        $('#joinCodeForm').submit(function(e) {
+            e.preventDefault();
+            socket.emit('join party', $('#joinCode').val());
+        });
+        socket.on('go to party', (link) => {
+            console.log('here');
+            console.log(link)
+            window.open(link,"_self");
+        });
+        socket.on('join error', (errormsg) => {
+            $('#joinerrormsg').text(errormsg);
+        });
+        socket.on('create error', (errormsg) => {
+            $('#starterrormsg').text(errormsg);
+        });
+        
 	});
 </script>
 
@@ -31,15 +51,16 @@
 		</div>
 	</div>
 	<div class="row justify-content-center">
-		<div class="col-4 text-center">
+		<div class="col-lg-4 col-8 text-center">
 			<div class="jumbotron">
 				<h1 class="display-4">Start a Party</h1>
 				<hr class="my-2">
-				<form class="m-4">
+				<form id="fileEntryForm" class="m-4">
 					<div class="custom-file">
-						<input type="file" class="custom-file-input">
-						<label class="custom-file-label" for="customFile">Choose a Video</label>
-					</div>
+						<input id="fileEntry" type="file" class="custom-file-input" accept=".mp4">
+						<label class="custom-file-label" for="fileEntry">Choose a Video</label>
+                    </div>
+                    <span id="starterrormsg" class="text-danger"></span>
 					<div class="p-4">
 						<input class="btn btn-primary w-100" type="submit" value="Start!">
 					</div>
@@ -47,23 +68,23 @@
 				<p>Choose a video to share then click start to begin a party.</p>
 			</div>
 		</div>
-		<div class="col-4 text-center">
+		<div class="col-lg-4 col-8 text-center">
 			<div class="jumbotron">
 				<h1 class="display-4">Join a Party</h1>
 				<hr class="my-2">
-				<form class="m-4">
+				<form id="joinCodeForm" class="m-4">
 					<div class="">
-						<input type="text" class="form-control text-center" placeholder="Enter Party Code">
-					</div>
+						<input id="joinCode" type="text" class="form-control text-center" placeholder="Enter Party Code">
+                    </div>
+                    <span id="joinerrormsg" class="text-danger"></span>
 					<div class="p-4">
 						<input class="btn btn-primary w-100" type="submit" value="Join!">
 					</div>
-				</form>
+                </form>
 				<p>Get a code from a party host and paste it here to join.</p>
 			</div>
 		</div>
 	</div>
-	
 </div>
 
 </body>
