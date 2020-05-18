@@ -39,7 +39,7 @@ app.get('/video', (req, res) => { //upon request for /video...
     //the range property is as a string="bytes=0-" where 0 corresponds to which part of the video is being requested
   	var parts = range.replace(/bytes=/, "").split("-"); //string of number that tells which byte to start loading at
   	var start = parseInt(parts[0], 10); //convert string to int (base 10)
-  	var end = start+1000000;//1MB at a time; alternatively, fileSize-1;
+  	var end = fileSize-1; //in bytes; so could be like 1000000 to load 1mb at a time
   	var chunkSize = (end-start)+1;
     var head = {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
