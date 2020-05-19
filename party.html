@@ -35,7 +35,7 @@
 				myplayer.play();
 			}
 		});
-		$('#video, .video-js, .video-js-progress-control, vjs-control').on("click", function(e) {
+		$('#video, .video-js, .video-js-progress-control, .vjs-time-control, .vjs-control, .vjs-control-bar').on("click", function(e) {
 			var update = [myplayer.currentTime(), myplayer.paused()];
 			console.log('sending update to server: ' + update);
 			socket.emit('actionPerform', update);
@@ -99,7 +99,8 @@
 			<video controls id="video" class="video-js vjs-theme-sea vjs-fill vjs-big-play-centered" data-setup="{}">
 				<source id="sourceofvideo" type="video/mp4">
 			</video>
-		</div>
+            
+        </div>
 	</div>
 </div>
 
