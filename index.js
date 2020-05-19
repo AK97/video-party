@@ -11,7 +11,7 @@ var siofu = require("socketio-file-upload");
 
 
 const url = 'localhost:69/';
-var port = 69;
+var port = process.end.PORT || 69;
 
 //// Helper Functions & Classes ////
 
