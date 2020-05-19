@@ -63,6 +63,7 @@ app.use(sessionDef);
 
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
+    
 });
 
 app.get('/vp*', (req, res) => {
@@ -152,8 +153,8 @@ indexsocket.on('connection', (socket) => {
 
     socket.on('join party', (code) => {
         //check if exists then instruct a redirect
-        console.log(parties);
-        console.log(parties[code])
+        // console.log(parties);
+        // console.log(parties[code])
         if (parties[code]) {
             socket.emit('go to party', code)
         }
@@ -186,18 +187,18 @@ partysocket.on('connection', (socket) => {
     
     //join chat room
     socket.join(roomToConnect);
-    parties[roomToConnect].members[socket.id] = "Anonymous";
-
+    if (parties[roomToConnect]) {
+        parties[roomToConnect].members[socket.id] = "Anonymous";
+        socket.emit('messagePopulate', parties[roomToConnect].message_log); //give joiner complete message history
+        socket.emit('statusUpdate', parties[roomToConnect].currentStatus); //catchup the joiner to position in video
+    }
     socket.emit('setup video', roomToConnect);
-
-    socket.emit('messagePopulate', parties[roomToConnect].message_log); //give joiner complete message history
-    // commented out until client server updown video implementation
-    // socket.emit('statusUpdate', currentStatus); //catchup the joiner to position in video
-    // socket.on('actionPerform', (videoStatus) => {
-    //     currentStatus = videoStatus;
-    //     console.log('user ' + socket.id + ' changed video status to ' + videoStatus);
-    //     partysocket.to(roomToConnect).emit('statusUpdate', currentStatus);
-    // });
+    
+    socket.on('actionPerform', (videoStatus) => {
+        currentStatus = videoStatus;
+        console.log('user ' + socket.id + ' changed video status to ' + videoStatus);
+        socket.to(roomToConnect).emit('statusUpdate', currentStatus);
+    });
     socket.on('name set', (nick) => {
         console.log('user ' +socket.id+ ' sets name to ' + nick); //print the chat message event
         parties[roomToConnect].members[socket.id] = nick;

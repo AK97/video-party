@@ -15,34 +15,31 @@
 <!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script> -->
 <script>
 	$(function () {
-		var socket = io('/partyns');
-
+        var socket = io('/partyns');
+        myplayer = videojs('video');
         socket.on('setup video', function(loc) {
-            console.log('setting source...');
             console.log(loc);
-            videojs('video').src({type:'video/mp4', src:'/video'+loc});
-            videojs('video').load();
-            //videojs('video').play(); //doesnt work. need to study this issue
-        });
+            myplayer.src({type:'video/mp4', src:'/video'+loc});
 
+            myplayer.autoplay(true);
+            myplayer.trigger('loadstart');
+        });
 		socket.on('statusUpdate', (newStatus) => {
 			console.log('received update from server')
 			console.log(newStatus);
-			videojs('video').currentTime(newStatus[0]);
-			if (videojs('video').paused()==false && newStatus[1]==true) {
-				videojs('video').pause();
+			myplayer.currentTime(newStatus[0]);
+			if (myplayer.paused()==false && newStatus[1]==true) {
+				myplayer.pause();
 			}
-			else if (videojs('video').paused()==true && newStatus[1]==false) {
-				videojs('video').play();
+			else if (myplayer.paused()==true && newStatus[1]==false) {
+				myplayer.play();
 			}
 		});
-
-		$('.video-js,.vjs-slider,.vjs-progress-control').on("click", function(e) {
-			var update = [videojs('video').currentTime(), videojs('video').paused()];
+		$('#video, .video-js, .video-js-progress-control, vjs-control').on("click", function(e) {
+			var update = [myplayer.currentTime(), myplayer.paused()];
 			console.log('sending update to server: ' + update);
 			socket.emit('actionPerform', update);
 		});
-
 		$('#nameEntry').submit(function(e){
 			e.preventDefault(); // prevents page reloading
 			socket.emit('name set', $('#n').val());
@@ -99,33 +96,13 @@
 		</div>
 
 		<div class="col-10 media_container mh-100">
-			<video controls id="video" class="video-js vjs-theme-sea vjs-fill" data-setup="{}">
-				<source id="sourceofvideo" src="" type="video/mp4">
+			<video controls id="video" class="video-js vjs-theme-sea vjs-fill vjs-big-play-centered" data-setup="{}">
+				<source id="sourceofvideo" type="video/mp4">
 			</video>
 		</div>
 	</div>
 </div>
 
-<!-- <div id="partyContainer">
-	<div id="videoContainer">
-		<video controls id="video" class="video-js vjs-theme-sea" data-setup="{}">
-		<source src="/video" type="video/mp4">
-		</video>
-	</div>
-
-	<div id="chatBox">
-		<center><h2>CHAT</h2></center>
-		<div id="chatHolder">
-			<ul id="chats"></ul>
-		</div>
-		<form id="nameEntry" action="">
-    	<input id="n" autocomplete="off" placeholder="Enter name (press enter)" minlength="1" maxlength="16" />
-  		</form>
-		<form id="chatInput" action="">
-    	<input id="m" autocomplete="off" placeholder="Send a message" minlength="1" />
-  		</form>
-	</div>
-</div> -->
 
 
 </body>
