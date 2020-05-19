@@ -6,6 +6,9 @@ var http = require("http").createServer(app);
 var io = require("socket.io")(http);
 var fs = require('fs');
 var session = require('express-session');
+var siofu = require("socketio-file-upload");
+// var fileUpload = require('express-fileupload');
+
 
 const url = 'localhost:69/';
 var port = 69;
@@ -26,7 +29,7 @@ function generatePartyCode() {
 class Party {
     constructor(host, file) {
         this.host = host; //host's session ID
-        this.filepath = file; //filepath on host's computer
+        this.filepath = file; //filepath
         this.code = generatePartyCode();
         this.members = {}; //store members by socketid:username because nicknames aren't important enough to track accross refreshes. allowing people to rename themself is okay.
         this.currentStatus = [0,true];
@@ -47,6 +50,8 @@ var parties = {
 //// Express Functions ////
 
 app.use('/styles',express.static(__dirname + '/styles')); //provide client with (static) stylesheets
+
+// app.use(fileUpload());
 
 sessionDef = session({
 	secret: 'secret-key', //apparently this should be some actual secret string. not sure why but eventually we can make it something random.
@@ -70,9 +75,21 @@ app.get('/vp*', (req, res) => {
     }
 });
 
+app.use(siofu.router);
+
+// app.post('/upload', function(req, res) {
+//     let uploadedFile = req.files.forUpload; // the uploaded file object
+//     console.log(uploadedFile);
+
+//     uploadedFile.mv('/media/'+newFileName)
+
+// });
 
 app.get('/video*', (req, res) => { //upon request for /video(partyurl) -- this will be req's by a partyroom's video tag
-    var path = 'media/movie.mp4';
+    let attempt = req.path.substr(6);
+    var path = parties[attempt].filepath;
+    //var path = 'media/movie.mp4';
+    
     var fileSize = fs.statSync(path).size; //get the size of the video
     var range = req.headers.range;
     //console.log(req.headers);
@@ -114,6 +131,25 @@ io.use(function(socket, next) {
 indexsocket.on('connection', (socket) => {
     console.log('user reached homepage with session ID' + socket.request.session.id);
 
+    var uploader = new siofu();
+    uploader.dir = 'media';
+    uploader.listen(socket);
+
+    uploader.on("start", (event) => {
+        console.log('new file upload starting from user with socket id: ' + socket.id)
+    });
+    
+    uploader.on("saved", function(event){
+        //a file has been uploaded. we can start a party room now.
+        let party = new Party('unknown host', event.file.pathName);
+        parties[party.code] = party;
+        socket.emit('upload success', 'Upload complete! Your party code is: ' + party.code)
+    });
+
+    uploader.on("error", function(event){
+        console.log("Error from uploader", event);
+    });
+
     socket.on('join party', (code) => {
         //check if exists then instruct a redirect
         console.log(parties);
@@ -151,6 +187,8 @@ partysocket.on('connection', (socket) => {
     //join chat room
     socket.join(roomToConnect);
     parties[roomToConnect].members[socket.id] = "Anonymous";
+
+    socket.emit('setup video', roomToConnect);
 
     socket.emit('messagePopulate', parties[roomToConnect].message_log); //give joiner complete message history
     // commented out until client server updown video implementation

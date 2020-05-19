@@ -4,8 +4,10 @@
   "description": "video file streamer for simultaneous viewing",
   "dependencies": {
     "express": "^4.17.1",
+    "express-fileupload": "^1.1.7-alpha.3",
     "express-session": "^1.17.1",
     "socket.io": "^2.3.0",
+    "socketio-file-upload": "^0.7.0",
     "video.js": "^7.7.6"
   },
   "main": "index.js",

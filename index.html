@@ -11,19 +11,28 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
+<script src="/siofu/client.js"></script>
 <!-- <script src="https://vjs.zencdn.net/7.7.6/video.js"></script> -->
 <script>
 	$(function () {
-        bsCustomFileInput.init()
+        bsCustomFileInput.init(); //used by bootstrap
         var socket = io('/indexns');
-        $('#fileEntryForm').submit(function(e) {
-            e.preventDefault();
-            //socket emit file
+        var uploader = new SocketIOFileUpload(socket);
+        uploader.listenOnSubmit($("#uploadButton")[0], $("#fileEntry")[0]);
+        uploader.addEventListener("progress", function(event){
+            var percent = event.bytesLoaded / event.file.size * 100;
+            $('#progressbar').css('width',parseInt(percent)+'%').text(Math.round(percent)+'%');
+            console.log("File is", percent.toFixed(2), "percent loaded");
+            //progress bar stuff
         });
+        
         $('#joinCodeForm').submit(function(e) {
             e.preventDefault();
             socket.emit('join party', $('#joinCode').val());
         });
+        socket.on('upload success', function(message) {
+            $('#successmsg').text(message);
+        })
         socket.on('go to party', (link) => {
             console.log('here');
             console.log(link)
@@ -45,8 +54,8 @@
 	<div class="row justify-content-center">
 		<div class="col-8 text-center pt-5">
 			<div class="jumbotron">
-				<h1 class="display-3">Welcome</h1>
-				<p class="lead">Video party let's you share and watch videos together with your friends.</p>
+				<h1 class="display-3">Video Party<small class="text-muted">v0.2</small></h1>
+                <p class="lead">Share and watch videos together with your friends.</p>
 			</div>
 		</div>
 	</div>
@@ -57,15 +66,19 @@
 				<hr class="my-2">
 				<form id="fileEntryForm" class="m-4">
 					<div class="custom-file">
-						<input id="fileEntry" type="file" class="custom-file-input" accept=".mp4">
+                        <input id="fileEntry" name="forUpload" type="file" class="custom-file-input" accept=".mp4" >
 						<label class="custom-file-label" for="fileEntry">Choose a Video</label>
                     </div>
                     <span id="starterrormsg" class="text-danger"></span>
+                    <div class="">
+                        <div id="progressbar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
 					<div class="p-4">
-						<input class="btn btn-primary w-100" type="submit" value="Start!">
-					</div>
+						<input id="uploadButton" class="btn btn-primary w-100" type="button" value="Upload">
+                    </div>
+                    <span id="successmsg" class="text-success"></span>
 				</form>
-				<p>Choose a video to share then click start to begin a party.</p>
+				<p>Choose an mp4 video then click to Upload.</p>
 			</div>
 		</div>
 		<div class="col-lg-4 col-8 text-center">
@@ -84,7 +97,9 @@
 				<p>Get a code from a party host and paste it here to join.</p>
 			</div>
 		</div>
-	</div>
+    </div>
+    <div class="text-center"><span class="text-white text-muted">This website is a work in progress.</span></div>
+    <!-- <div class="text-center"><span class="text-white text-muted">Built by AK</span></div> -->
 </div>
 
 </body>
