@@ -36,7 +36,7 @@
             $('#progressbar').css('width',parseInt(percent)+'%').text(Math.round(percent)+'%');
         });
         socket.on('upload success', function(message) {
-            //clean up add to queue box
+            $('#uploadsuccessmsg').text(message);
         })
         socket.on('upload error', (errormsg) => {
             $('#uploaderrormsg').text(errormsg);
@@ -195,6 +195,7 @@
                                             <label class="custom-file-label" for="fileEntry">Upload File</label>
                                         </div>
                                         <span id="uploaderrormsg" class="text-danger"></span>
+                                        <span id="uploadsuccessmsg" class="text-success"></span>
                                         <div class="">
                                             <div id="progressbar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>

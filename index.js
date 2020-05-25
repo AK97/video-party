@@ -228,6 +228,7 @@ partysocket.on('connection', (socket) => {
     uploader.on("saved", function(event){
         //a file has been uploaded. add it to queue
         console.log(event)
+        socket.emit('upload success', event.file.name+' has been added to the library')
         parties[roomToConnect].queue.push(new QueueItem('mp4 video', event.file.pathName, event.file.name, parties[roomToConnect].members[socket.id]));
         //refresh everyone's queues
         partysocket.to(roomToConnect).emit('queue update', parties[roomToConnect].queue);
