@@ -2,44 +2,61 @@
 <html>
 <head>
 	<title>Video Party</title>
-	<link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" />
-	<link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet">
+	<!-- <link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" /> -->
+	<!-- <link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet"> -->
 	<link href="styles/style.css" rel="stylesheet">
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelementplayer.min.css" integrity="sha256-ji1bfJaTGnyscoc7LzcV9yNJy5vGKJ0frO3KJo1oaGQ=" crossorigin="anonymous" />
 </head>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-<script src="https://vjs.zencdn.net/7.7.6/video.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
+<!-- <script src="https://vjs.zencdn.net/7.7.6/video.js"></script> -->
 <!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script> -->
-<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script> -->
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+<script src="/siofu/client.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement.min.js" integrity="sha256-ad7GNjoOt24CrYL7Rxrzt4jZGZjPlOVGHfTha+u2n5s=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement-and-player.min.js" integrity="sha256-RDugr3p+2CciPH+zwAjAK5/x1lG2SS6cJwN4sH2fYAg=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/renderers/youtube.min.js" integrity="sha256-1WGZILfyIxRAWj2F0Jc/FxxJM57GZvJ/Lg5X+m+8U5o=" crossorigin="anonymous"></script>
 <script>
 	$(function () {
+        // var player = new MediaElement('media_player', {
+        //     success: function(mediaElement, originalNode) {
+        //         // mediaElement.load();
+        //         // mediaElement.play();
+        //     }
+        // });
         var socket = io('/partyns');
-        myplayer = videojs('video');
-        socket.on('setup video', function(loc) {
-            console.log(loc);
-            myplayer.src({type:'video/mp4', src:'/video'+loc});
-
-            myplayer.autoplay(true);
-            myplayer.trigger('loadstart');
+        bsCustomFileInput.init(); //used by bootstrap
+        var uploader = new SocketIOFileUpload(socket);
+        uploader.listenOnSubmit($("#uploadButton")[0], $("#fileEntry")[0]);
+        uploader.addEventListener("progress", function(event){
+            var percent = event.bytesLoaded / event.file.size * 100;
+            $('#progressbar').css('width',parseInt(percent)+'%').text(Math.round(percent)+'%');
+        });
+        socket.on('upload success', function(message) {
+            //clean up add to queue box
+        })
+        socket.on('upload error', (errormsg) => {
+            $('#uploaderrormsg').text(errormsg);
         });
 		socket.on('statusUpdate', (newStatus) => {
 			console.log('received update from server')
 			console.log(newStatus);
-			myplayer.currentTime(newStatus[0]);
-			if (myplayer.paused()==false && newStatus[1]==true) {
-				myplayer.pause();
+			player.setCurrentTime(newStatus[0]);
+			if (player.paused==false && newStatus[1]==true) {
+				player.pause();
 			}
-			else if (myplayer.paused()==true && newStatus[1]==false) {
-				myplayer.play();
-			}
-		});
-		$('#video, .video-js, .video-js-progress-control, .vjs-time-control, .vjs-control, .vjs-control-bar').on("click", function(e) {
-			var update = [myplayer.currentTime(), myplayer.paused()];
-			console.log('sending update to server: ' + update);
-			socket.emit('actionPerform', update);
-		});
+			else if (player.paused==true && newStatus[1]==false) {
+				player.play();
+            }
+        });
+        $('.media_container').on('click', '.mejs__container', function() {
+            var update = [player.getCurrentTime(), player.paused];
+            console.log('sending update to server: ' + update);
+            socket.emit('actionPerform', update);
+        })
 		$('#nameEntry').submit(function(e){
 			e.preventDefault(); // prevents page reloading
 			socket.emit('name set', $('#n').val());
@@ -51,7 +68,13 @@
 			socket.emit('chat sent', $('#m').val()); //when a user sends a message, send it to server as 'chat sent' event
 			$('#m').val('');
 			return false;
-		});
+        });
+        $('#queue_holder').on('click','.playNow',function(e){
+            e.preventDefault(); // prevents page reloading
+            //some queue item has been asked to play. tell server which num in queue it is
+            socket.emit('play request', $(this).data('q_item'));
+            return false;
+        });
 		socket.on('chat dist', function(msg){
 			$('#chats').append($('<li>').text(msg));
 		});
@@ -60,51 +83,152 @@
 				$('#chats').append($('<li>').text(messages[i]));
 			}
 		});
-
+        socket.on('userPopulate', function(users) {
+            $('#users').empty();
+			for (i in users) {
+				$('#users').append($('<li>').text(users[i]));
+			}
+        });
+        socket.on('queue update', function(queue) {
+            $(".queue_item").each(function(index) {
+                this.remove();
+            });
+            for (q in queue) {
+                let curr = parseInt(q)+1;
+                let position = '('+curr+'/'+queue.length+') ';
+                let new_q_item = $('<div class="card text-white bg-dark mb-3 queue_item">')
+                    .append(
+                        $('<div>').addClass('card-header').text(queue[q].title)
+                    )
+                    .append(
+                        $('<div class="card-body">').append(
+                            $('<p>').addClass('card-text').text(queue[q].type)
+                        )
+                        .append(
+                            $('<p>').addClass('card-text').text('Added by ' + queue[q].added_by)
+                        )
+                        .append(
+                            $('<a href="#" class="btn btn-info playNow">Play Now</a>').data('q_item', parseInt(q))
+                        )
+                        // .append(
+                        //     $('<a href="#" class="btn btn-danger">Delete</a>')
+                        // )
+                    );
+                $('#queue_holder').append(new_q_item);
+            }
+        })
+        socket.on('start playing', function(source) {
+            $('.media_container').empty();
+            //var container = $('<div class="vid_content">');
+            var video = $('<video controls id="vid">');
+            $('.media_container').append(video);
+            player = new MediaElementPlayer('vid', {
+		        success: function(mediaElement, originalNode) {
+                    mediaElement.setSrc([{src:source, type:'video/mp4'}]);
+                    mediaElement.load();
+                    mediaElement.play();
+                }
+            });
+        });
 	});
 </script>
 
 <body>
 <div class="container-fluid h-100">
-	<div class="row h-100">
-		<div class="col-2 h-100 p-0 flex-column d-flex chat_container">
-			<h1 class="text-center">CHAT</h1>
-			<div class="flex-grow-1 pl-3 pt-2 d-flex flex-column-reverse chatbox">
-				<ul id="chats" class="p-0">
-				</ul>
-			</div>
-
-			<div class="pl-3 pr-3 pt-2 pb-2">
-				<div class="input-group">
-					<form id="nameEntry" class="input-group">
-						<input id="n" type="text" class="form-control" placeholder="Enter name" autocomplete="off" minlength="1" maxlength="24">
-						<div class="input-group-append">
-							<button class="btn btn-outline-secondary" type="submit">Submit</button>
-						</div>
-					</form>
-				</div>
-				
-				<div class="input-group mb-1 mt-1">
-					<form id="chatInput" class="input-group">
-						<input id="m" type="text" class="form-control" placeholder="Send a message" autocomplete="off" minlength="1">
-						<div class="input-group-append">
-							<button class="btn btn-outline-secondary" type="submit">Send</button>
-						</div>
-					</form>
-				</div>
-			</div>
+	<div class="row h-100" style="overflow: hidden;">
+		<div class="col-2 h-100 p-0 chat_container d-flex flex-column">
+            <h1 class="text-center">Menu</h1>
+            <div class="nav nav-justified nav-tabs" id="nav-tab" role="tablist">
+                <a class="nav-item nav-link active" id="nav-chat-tab" data-toggle="tab" href="#nav-chat" role="tab" aria-controls="nav-chat" aria-selected="true">Chat</a>
+                <a class="nav-item nav-link" id="nav-users-tab" data-toggle="tab" href="#nav-users" role="tab" aria-controls="nav-users" aria-selected="false">Users</a>
+                <a class="nav-item nav-link" id="nav-q-tab" data-toggle="tab" href="#nav-q" role="tab" aria-controls="nav-q" aria-selected="false">Library</a>
+            </div>
+            <div class="tab-content h-100" id="nav-tabContent" style="overflow: hidden;">
+                <div class="tab-pane h-100 fade show active" id="nav-chat" role="tabpanel" aria-labelledby="nav-chat-tab">
+                    <div class="d-flex flex-column-reverse h-100">
+                        <div class="pl-3 pr-3 pt-2 pb-2">
+                            <div class="input-group">
+                                <form id="nameEntry" class="input-group">
+                                    <input id="n" type="text" class="form-control" placeholder="Enter name" autocomplete="off" minlength="1" maxlength="24">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="submit">Submit</button>
+                                    </div>
+                                </form>
+                            </div>
+                            
+                            <div class="input-group mb-1 mt-1">
+                                <form id="chatInput" class="input-group">
+                                    <input id="m" type="text" class="form-control" placeholder="Send a message" autocomplete="off" minlength="1">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="submit">Send</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="pl-3 pt-2 scrollable d-flex flex-column-reverse" >
+                            <ul id="chats" class="p-0">
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane h-100 fade" id="nav-users" role="tabpanel" aria-labelledby="nav-users-tab">
+                    <div class="d-flex flex-column-reverse mh-100">
+                        <div class="pl-3 pt-2 scrollable d-flex flex-column">
+                            <h3>Here Now:</h3>
+                            <ul id="users" class="p-0">
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane h-100 fade" id="nav-q" role="tabpanel" aria-labelledby="nav-q-tab">
+                    <div class="d-flex flex-column-reverse mh-100">
+                        <div id="queue_holder" class="pl-3 pt-2 scrollable d-flex flex-column">
+                            <div class="card text-white bg-info mb-3" style="max-width: 18rem;">
+                                <div class="card-header"><h4 class="m-0">Add to Library</h4></div>
+                                <div class="card-body">
+                                    <!-- <input id="videoLink" type="text" class="form-control" placeholder="Video Link" autocomplete="off" minlength="1"> -->
+                                    <!-- <input id="addLinkToQueue" class="btn btn-primary w-100" type="button" value="Add"> -->
+                                    <!-- <span class="text-warning"></span> -->
+                                    <form id="fileEntryForm" class="pt-3">
+                                        <div class="custom-file">
+                                            <input id="fileEntry" name="forUpload" type="file" class="custom-file-input" accept=".mp4" >
+                                            <label class="custom-file-label" for="fileEntry">Upload File</label>
+                                        </div>
+                                        <span id="uploaderrormsg" class="text-danger"></span>
+                                        <div class="">
+                                            <div id="progressbar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <input id="uploadButton" class="btn btn-primary w-100" type="button" value="Upload & Add">
+                                    </form>
+                                </div>
+                            </div>
+                            <!-- <div class="card text-white bg-dark mb-3 queue_item" style="max-width: 18rem;">
+                                <div class="card-header">(1/3) Video Title</div>
+                                <div class="card-body">
+                                    <p class="card-text">YouTube Video</p>
+                                    <p class="card-text">Added by Foo</p>
+                                    <a href="#" class="btn btn-info">Play Now</a>
+                                    <a href="#" class="btn btn-danger">Delete</a>
+                                </div>
+                            </div> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
 		</div>
-
-		<div class="col-10 media_container mh-100">
-			<video controls id="video" class="video-js vjs-theme-sea vjs-fill vjs-big-play-centered" data-setup="{}">
-				<source id="sourceofvideo" type="video/mp4">
-			</video>
             
+		<div class="col-10 media_container p-0">
+            <!-- <div class="row justify-content-md-center h-100">
+                <div class="col-8 m-auto">
+                    <div class="alert alert-secondary">
+                        <h1 class="display-4">Let's get this party started</h1>
+                        <h2>Add something to the library to begin</h2>
+                    </div>
+                </div>
+            </div> -->
         </div>
-	</div>
+    </div>
 </div>
-
-
 
 </body>
 

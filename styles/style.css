@@ -7,18 +7,30 @@ html,body {
 }
 
 
-.chatbox {
+.scrollable {
     overflow-y: scroll;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none;  /* IE */
+    /*z-index: 101;*/
 }
-.chatbox::-webkit-scrollbar { /* WebKit */
+.scrollable::-webkit-scrollbar { /* WebKit */
     width: 0;
     height: 0;
 }
 
 #chats {
-	list-style-type: none;
+    list-style-type: none;
+    font-size: medium;
+}
+
+#users {
+    list-style-type: none;
+    font-size: larger;
+}
+
+#queue {
+    list-style-type: none;
+    font-size: large;
 }
 
 .media_container {
@@ -28,4 +40,13 @@ html,body {
 .chat_container {
 	background-color: #111111;
 	color: #d3d3d3;
+}
+
+video, .vid_content, .mejs__container, .mejs__video {
+    max-width: 100%;
+    max-height: 100vh;
+}
+
+.queue_item {
+    max-width: 18rem;
 }

@@ -2,36 +2,26 @@
 <html>
 <head>
 	<title>Video Party</title>
-	<link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" />
-	<link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet">
 	<link href="styles/style.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
 </head>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script> -->
 <script src="/siofu/client.js"></script>
-<!-- <script src="https://vjs.zencdn.net/7.7.6/video.js"></script> -->
 <script>
 	$(function () {
-        bsCustomFileInput.init(); //used by bootstrap
         var socket = io('/indexns');
-        var uploader = new SocketIOFileUpload(socket);
-        uploader.listenOnSubmit($("#uploadButton")[0], $("#fileEntry")[0]);
-        uploader.addEventListener("progress", function(event){
-            var percent = event.bytesLoaded / event.file.size * 100;
-            $('#progressbar').css('width',parseInt(percent)+'%').text(Math.round(percent)+'%');
-        });
-        
         $('#joinCodeForm').submit(function(e) {
             e.preventDefault();
             socket.emit('join party', $('#joinCode').val());
         });
-        socket.on('upload success', function(message) {
-            $('#successmsg').text(message);
-            $('#buttonHolder').remove();
-        })
+        $('#createRoomForm').submit(function(e) {
+            e.preventDefault();
+            socket.emit('create party');
+        });
         socket.on('go to party', (link) => {
             console.log('here');
             console.log(link)
@@ -43,7 +33,6 @@
         socket.on('create error', (errormsg) => {
             $('#starterrormsg').text(errormsg);
         });
-        
 	});
 </script>
 
@@ -53,17 +42,27 @@
 	<div class="row justify-content-center">
 		<div class="col-8 text-center pt-4">
 			<div class="jumbotron p-5">
-				<h1 class="display-3">Video Party<small class="text-muted">v0.2</small></h1>
-                <p class="lead">Share and watch videos together with your friends.</p>
+				<h1 class="display-3">Video Party<small class="text-muted">v0.3</small></h1>
+                <h3>Share and watch videos together with your friends.</h3>
 			</div>
 		</div>
-	</div>
-	<div class="row justify-content-center">
+    </div>
+    <div class="row justify-content-center">
 		<div class="col-lg-4 col-8 text-center">
 			<div class="jumbotron p-5">
 				<h1 class="display-4">Start a Party</h1>
-				<hr class="my-2">
-				<form id="fileEntryForm" class="m-4">
+                <hr class="my-2">
+                <form id="createRoomForm" class="m-4">
+					<!-- <div class="">
+						<input id="joinCode" type="text" class="form-control text-center" placeholder="Custom Party Code">
+                    </div> -->
+                    <span id="successmsg" class="text-success"></span>
+                    <span id="starterrormsg" class="text-danger"></span>
+					<div class="p-4">
+						<input class="btn btn-primary w-100" type="submit" value="Create Room!">
+					</div>
+                </form>
+				<!-- <form id="fileEntryForm" class="m-4">
 					<div class="custom-file">
                         <input id="fileEntry" name="forUpload" type="file" class="custom-file-input" accept=".mp4" >
 						<label class="custom-file-label" for="fileEntry">Choose a Video</label>
@@ -75,9 +74,10 @@
 					<div id="buttonHolder" class="p-4">
 						<input id="uploadButton" class="btn btn-primary w-100" type="button" value="Upload">
                     </div>
-                    <span id="successmsg" class="text-success"></span>
-				</form>
-				<p>Upload an mp4 file to start a party.</p>
+                    
+                </form> -->
+                
+				<p>Click to begin a party</p>
 			</div>
 		</div>
 		<div class="col-lg-4 col-8 text-center">
@@ -97,7 +97,24 @@
 			</div>
 		</div>
     </div>
-    <div class="text-center"><span class="text-white text-muted">This website is a work in progress.</span></div>
+    <div class="row justify-content-center">
+		<div class="col-8 text-center">
+			<div class="jumbotron p-5">
+                <h1 class="display-4">Instructions</h1>
+                <h3>Step 1</h3>
+                <p class="lead">Create a private room.</span></p>
+                <h3>Step 2</h3>
+                <p class="lead">Share the link with your friends.</span></p>
+                <h3>Step 3</h3>
+                <p class="lead">Once in the room, paste a link to a video (from Youtube or anywhere else) or upload a video or audio file</span></p>
+                <h3>Step 4</h3>
+                <p class="lead">Watch videos or listen to music in synchrony.</span></p>
+                
+			</div>
+		</div>
+    </div>
+	
+    <!-- <div class="text-center"><span class="text-white text-muted">This website is a work in progress.</span></div> -->
     <!-- <div class="text-center"><span class="text-white text-muted">Built by AK</span></div> -->
 </div>
 
