@@ -6,7 +6,7 @@
     "express": "^4.17.1",
     "express-fileupload": "^1.1.7-alpha.3",
     "express-session": "^1.17.1",
-    "serve-favicon": "^2.5.0",
+    "simple-youtube-api": "^5.2.1",
     "socket.io": "^2.3.0",
     "socketio-file-upload": "^0.7.0"
   },

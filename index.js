@@ -8,10 +8,9 @@ var fs = require('fs');
 var session = require('express-session');
 var siofu = require("socketio-file-upload");
 // var fileUpload = require('express-fileupload');
-var favicon = require('serve-favicon');
+const YouTube = require('simple-youtube-api');
+const youtube = new YouTube('AIzaSyA_oVYr4MflQ9GLEEMiAl-jsTZ9Xd6_8m8');
 
-
-const url = 'localhost:69/';
 var port = process.env.PORT || 69;
 
 //// Helper Functions & Classes ////
@@ -27,33 +26,46 @@ function generatePartyCode() {
 	);
 }
 
+function getYouTubeVideoTitle(video_url_id) {
+    let vid = 'https://www.youtube.com/watch?' + video_url_id;
+    youtube.getVideo(vid)
+    .then(video => {
+        console.log(video.title);
+        return video.title;
+    })
+    .catch(console.log);
+}
+
 class QueueItem {
-    constructor(type, link, title, added_by) {
+    constructor(type, link, title, added_by, added_in) {
         this.type = type;
-        this.link = link;
+        this.filepath = link; //for uploads this is path. for links this is a video id
         this.title = title;
         this.added_by = added_by;
-        this.urlcode = generatePartyCode();
-        this.nowPlaying = false;
-
+        //this.nowPlaying = false;
+        //added_in is the code for the party this QI is in
         switch(type) {
             case 'mp4 video':
                 this.typeLabel = 'video/mp4';
+                this.url = 'video' + added_in + generatePartyCode();
                 break;
             case 'Youtube video':
-                this.typeLabel = 'youtube'; //TO BE CHANGED
+                this.typeLabel = 'video/youtube';
+                this.url = 'https://www.youtube.com/watch?'+link;
                 break;
             default:
                 this.typeLabel = '';
                 break;
         }
     }
+    info() {
+        return [this.typeLabel, this.url];
+    }
 }
 
 class Party {
     constructor(host) {
         this.host = host; //host's session ID
-        this.filepath = '';
         this.code = generatePartyCode();
         this.members = {}; //store members by socketid:username because nicknames aren't important enough to track accross refreshes. allowing people to rename themself is okay.
         this.message_log = []; //complete message history
@@ -62,9 +74,8 @@ class Party {
         this.currentStatus = [0,true];
         this.queue = [];
     }
-    playNow(filepath, nowPlaying) {
-        this.filepath = filepath;
-        this.nowPlaying = nowPlaying;
+    playNow(queue_item) {
+        this.nowPlaying = queue_item;
     }
 }
 
@@ -78,7 +89,7 @@ var parties = {
 //// Express Functions ////
 
 app.use('/styles',express.static(__dirname + '/styles')); //provide client with (static) stylesheets
-app.use(favicon(__dirname + '/images/favicon.ico')); //serve favicon
+app.use('/images',express.static(__dirname + '/images')); //provide client with (static) images (contains favicon)
 
 // app.use(fileUpload());
 
@@ -119,12 +130,8 @@ app.get('/video*', (req, res) => { //upon request for /video(partycode)(videocod
     //forcing every video to have a unique url might prevent cookie issues in browser
     let attempt = req.path.substr(6,8); //just partycode
     let vidcode = req.path.substr(14); //just videocode
-    // for (var qi = 0; qi < parties[attempt].queue.length; qi++) {
-    //     if (parties[attempt].queue[qi].urlcode == vidcode) {
-    //         var path = parties[attempt].filepath;
-    //     }
-    // }
-    var path = parties[attempt].filepath;
+
+    var path = parties[attempt].nowPlaying.filepath;
     // var path = 'media/movie.mp4';
     var fileSize = fs.statSync(path).size; //get the size of the video
     var range = req.headers.range;
@@ -212,7 +219,8 @@ partysocket.on('connection', (socket) => {
         partysocket.to(roomToConnect).emit('userPopulate', (Object.values(parties[roomToConnect].members))); //update everyone in the room's userlist
         socket.emit('queue update', parties[roomToConnect].queue); //give joiner queue
         if (parties[roomToConnect].nowPlaying) { //if there's something playing...
-            socket.emit('start playing', 'video'+roomToConnect+parties[roomToConnect].nowPlaying); //load up currently playing video
+            console.log(parties[roomToConnect].nowPlaying.info());
+            socket.emit('start playing', parties[roomToConnect].nowPlaying.info()); //load up currently playing video
             socket.emit('statusUpdate', parties[roomToConnect].currentStatus); //catchup the joiner to position in video
         }
     }
@@ -229,7 +237,7 @@ partysocket.on('connection', (socket) => {
         //a file has been uploaded. add it to queue
         console.log(event)
         socket.emit('upload success', event.file.name+' has been added to the library')
-        parties[roomToConnect].queue.push(new QueueItem('mp4 video', event.file.pathName, event.file.name, parties[roomToConnect].members[socket.id]));
+        parties[roomToConnect].queue.push(new QueueItem('mp4 video', event.file.pathName, event.file.name, parties[roomToConnect].members[socket.id], roomToConnect));
         //refresh everyone's queues
         partysocket.to(roomToConnect).emit('queue update', parties[roomToConnect].queue);
     });
@@ -238,14 +246,41 @@ partysocket.on('connection', (socket) => {
         console.log("Error from uploader", event);
     });
 
+    socket.on('link add', (link) => {
+        if (parties[roomToConnect]) { //make sure room still exists, as always..
+            //check if it's a youtube link
+            if (link.toUpperCase().includes('YOUTUBE') || link.toUpperCase().includes('YOUTU.BE')) {
+                //get the unique youtube video id
+                let youtube_url = link.match(/(?:\/|%3D|v=|vi=)([0-9A-z-_]{11})(?:[%#?&]|$)/gm);
+                if (youtube_url) {
+                    socket.emit('link success');
+                    console.log('video added to library with yt url ' + youtube_url[0]);
+                    youtube.getVideo('https://www.youtube.com/watch?' + youtube_url[0]) //get the title from youtube
+                        .then(video => { //once we've gotten the title we can add this to the queue
+                            console.log('added YT vid has title: ', video.title);
+                            parties[roomToConnect].queue.push(new QueueItem('Youtube video', youtube_url[0], video.title, parties[roomToConnect].members[socket.id], roomToConnect));
+                            partysocket.to(roomToConnect).emit('queue update', parties[roomToConnect].queue);
+                        })
+                }
+                else {
+                    socket.emit('link error', 'This does not appear to be a valid youtube link.')
+                }
+            }
+            else {
+                socket.emit('link error', 'Sorry. Only YouTube videos are supported at this time.')
+            }
+        }
+    });
+
     socket.on('play request', (q) => {
         console.log('player request:')
         console.log(parties[roomToConnect].queue[q].typeLabel)
-        if (parties[roomToConnect].queue[q].typeLabel = 'video/mp4') {
-            parties[roomToConnect].playNow(parties[roomToConnect].queue[q].link, parties[roomToConnect].queue[q].urlcode);
-            partysocket.to(roomToConnect).emit('start playing', 'video'+roomToConnect+parties[roomToConnect].nowPlaying);
+        if (parties[roomToConnect].queue[q].typeLabel == 'video/mp4' || parties[roomToConnect].queue[q].typeLabel == 'video/youtube') {
+            parties[roomToConnect].playNow(parties[roomToConnect].queue[q]);
+            console.log(parties[roomToConnect].nowPlaying.info());
+            partysocket.to(roomToConnect).emit('start playing', parties[roomToConnect].nowPlaying.info());
         }
-        console.log(parties[roomToConnect].filepath);
+        console.log(parties[roomToConnect].nowPlaying.filepath);
     });
     socket.on('actionPerform', (videoStatus) => {
         parties[roomToConnect].currentStatus = videoStatus;

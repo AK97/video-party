@@ -1,45 +1,51 @@
 <!doctype html>
 <html>
 <head>
-	<title>Video Party</title>
+	<title>MediaRoom</title>
 	<!-- <link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" /> -->
 	<!-- <link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet"> -->
 	<link href="styles/style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelementplayer.min.css" integrity="sha256-ji1bfJaTGnyscoc7LzcV9yNJy5vGKJ0frO3KJo1oaGQ=" crossorigin="anonymous" />
+    <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+    <link rel="manifest" href="images/site.webmanifest">
 </head>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
-<!-- <script src="https://vjs.zencdn.net/7.7.6/video.js"></script> -->
 <!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script> -->
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
 <script src="/siofu/client.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement.min.js" integrity="sha256-ad7GNjoOt24CrYL7Rxrzt4jZGZjPlOVGHfTha+u2n5s=" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement-and-player.min.js" integrity="sha256-RDugr3p+2CciPH+zwAjAK5/x1lG2SS6cJwN4sH2fYAg=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/renderers/youtube.min.js" integrity="sha256-1WGZILfyIxRAWj2F0Jc/FxxJM57GZvJ/Lg5X+m+8U5o=" crossorigin="anonymous"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/renderers/youtube.min.js" integrity="sha256-1WGZILfyIxRAWj2F0Jc/FxxJM57GZvJ/Lg5X+m+8U5o=" crossorigin="anonymous"></script> -->
 <script>
 	$(function () {
-        // var player = new MediaElement('media_player', {
-        //     success: function(mediaElement, originalNode) {
-        //         // mediaElement.load();
-        //         // mediaElement.play();
-        //     }
-        // });
         var socket = io('/partyns');
         bsCustomFileInput.init(); //used by bootstrap
+        $('#welcome').modal(); //show modal
         var uploader = new SocketIOFileUpload(socket);
         uploader.listenOnSubmit($("#uploadButton")[0], $("#fileEntry")[0]);
         uploader.addEventListener("progress", function(event){
             var percent = event.bytesLoaded / event.file.size * 100;
             $('#progressbar').css('width',parseInt(percent)+'%').text(Math.round(percent)+'%');
         });
-        socket.on('upload success', function(message) {
+        socket.on('upload success', (message) => {
             $('#uploadsuccessmsg').text(message);
+            $('#uploaderrormsg').text('');
         })
         socket.on('upload error', (errormsg) => {
             $('#uploaderrormsg').text(errormsg);
+            $('#uploadsuccessmsg').text('');
+        });
+        socket.on('link success', () => {
+            $('#linkerrormsg').text('');
+        });
+        socket.on('link error', (errormsg) => {
+            $('#linkerrormsg').text(errormsg);
         });
 		socket.on('statusUpdate', (newStatus) => {
 			console.log('received update from server')
@@ -74,6 +80,10 @@
             //some queue item has been asked to play. tell server which num in queue it is
             socket.emit('play request', $(this).data('q_item'));
             return false;
+        });
+        $('#linkEntryForm').submit(function(e){
+            e.preventDefault();
+            socket.emit('link add', $('#videoLink').val());
         });
 		socket.on('chat dist', function(msg){
 			$('#chats').append($('<li>').text(msg));
@@ -117,14 +127,18 @@
                 $('#queue_holder').append(new_q_item);
             }
         })
-        socket.on('start playing', function(source) {
+        socket.on('start playing', function(source_info) {
+            //source_info = [type, url]
+            console.log(source_info)
+            let src = source_info[1];
+            let type = source_info[0];
             $('.media_container').empty();
-            //var container = $('<div class="vid_content">');
             var video = $('<video controls id="vid">');
             $('.media_container').append(video);
             player = new MediaElementPlayer('vid', {
+                stretching: 'fill',
 		        success: function(mediaElement, originalNode) {
-                    mediaElement.setSrc([{src:source, type:'video/mp4'}]);
+                    mediaElement.setSrc([{src:src, type:type}]);
                     mediaElement.load();
                     mediaElement.play();
                 }
@@ -136,7 +150,7 @@
 <body>
 <div class="container-fluid h-100">
 	<div class="row h-100" style="overflow: hidden;">
-		<div class="col-2 h-100 p-0 chat_container d-flex flex-column">
+		<div class="col-xl-2 col-3 h-100 p-0 chat_container d-flex flex-column">
             <h1 class="text-center">Menu</h1>
             <div class="nav nav-justified nav-tabs" id="nav-tab" role="tablist">
                 <a class="nav-item nav-link active" id="nav-chat-tab" data-toggle="tab" href="#nav-chat" role="tab" aria-controls="nav-chat" aria-selected="true">Chat</a>
@@ -186,20 +200,22 @@
                             <div class="card text-white bg-info mb-3" style="max-width: 18rem;">
                                 <div class="card-header"><h4 class="m-0">Add to Library</h4></div>
                                 <div class="card-body">
-                                    <!-- <input id="videoLink" type="text" class="form-control" placeholder="Video Link" autocomplete="off" minlength="1"> -->
-                                    <!-- <input id="addLinkToQueue" class="btn btn-primary w-100" type="button" value="Add"> -->
-                                    <!-- <span class="text-warning"></span> -->
-                                    <form id="fileEntryForm" class="pt-3">
+                                    <form id="linkEntryForm" class="">
+                                        <input id="videoLink" type="text" class="form-control" placeholder="YouTube Link" autocomplete="off" minlength="1">
+                                        <input id="addLinkToQueue" class="btn btn-primary w-100" type="submit" value="Add">
+                                        <p id="linkerrormsg" class="text-warning"></p>
+                                    </form>
+                                    <form id="fileEntryForm" class="">
                                         <div class="custom-file">
                                             <input id="fileEntry" name="forUpload" type="file" class="custom-file-input" accept=".mp4" >
-                                            <label class="custom-file-label" for="fileEntry">Upload File</label>
+                                            <label class="custom-file-label text-secondary" for="fileEntry">Upload File</label>
                                         </div>
-                                        <span id="uploaderrormsg" class="text-danger"></span>
-                                        <span id="uploadsuccessmsg" class="text-success"></span>
                                         <div class="">
                                             <div id="progressbar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
                                         <input id="uploadButton" class="btn btn-primary w-100" type="button" value="Upload & Add">
+                                        <p id="uploaderrormsg" class="text-warning"></p>
+                                        <!-- <p id="uploadsuccessmsg" class="text-success"></p> -->
                                     </form>
                                 </div>
                             </div>
@@ -218,7 +234,7 @@
             </div>
 		</div>
             
-		<div class="col-10 media_container p-0">
+		<div class="col-xl-10 col-9 media_container p-0">
             <!-- <div class="row justify-content-md-center h-100">
                 <div class="col-8 m-auto">
                     <div class="alert alert-secondary">
