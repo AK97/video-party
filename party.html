@@ -108,12 +108,16 @@
                 let position = '('+curr+'/'+queue.length+') ';
                 let new_q_item = $('<div class="card text-white bg-dark mb-3 queue_item">')
                     .append(
+                        $('<img class="card-img-top">').attr('src', queue[q].thumbnail)
+                    )
+                    .append(
                         $('<div>').addClass('card-header').text(queue[q].title)
                     )
                     .append(
-                        $('<div class="card-body">').append(
-                            $('<p>').addClass('card-text').text(queue[q].type)
-                        )
+                        $('<div class="card-body">')
+                        // .append(
+                        //     $('<p>').addClass('card-text').text(queue[q].type)
+                        // )
                         .append(
                             $('<p>').addClass('card-text').text('Added by ' + queue[q].added_by)
                         )

@@ -48,10 +48,12 @@ class QueueItem {
             case 'mp4 video':
                 this.typeLabel = 'video/mp4';
                 this.url = 'video' + added_in + generatePartyCode();
+                this.thumbnail = 'mp4thumb.png'
                 break;
             case 'Youtube video':
                 this.typeLabel = 'video/youtube';
                 this.url = 'https://www.youtube.com/watch?'+link;
+                this.thumbnail = 'https://img.youtube.com/vi/'+link.substr(2)+'/0.jpg'
                 break;
             default:
                 this.typeLabel = '';
