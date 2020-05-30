@@ -178,8 +178,9 @@
                 function(stream) { //user allowed access to mic/cam
                     local_media_stream = stream;
                     var local_media = $('#selfVideo'); //the video tag for the remote user
+                    local_media.bind('contextmenu', function() {return false;});
                     local_media.attr("autoplay", "autoplay");
-                    local_media.attr("muted", "true"); //mute self video
+                    local_media.prop("muted", true); //mute self video
                     //local_media.attr("controls", "");
                     local_media[0].srcObject = stream;
                     if(cb) {
@@ -190,12 +191,17 @@
                     console.log("Access denied for audio/video");
                 });
         }
-        $('#joinVideoChat').click(function() {
+        $('#user_vid_holder').on('click', '#joinVideoChat', function() {
             setup_local_media(function() { //get access to mic/cam
-                $('#joinVideoChat').remove();
+                $('#joinVideoChat').replaceWith($('<button id="leaveVideoChat" class="btn btn-danger w-50" type="button">').text('Leave'));
                 socket.emit('join video call');
             });
-        });
+        })
+        $('#user_vid_holder').on('click', '#leaveVideoChat', function() {
+            $('#leaveVideoChat').replaceWith($('<button id="joinVideoChat" class="btn btn-success w-50" type="button">').text('Join Video Call'));
+            console.log(local_media_stream)
+            socket.emit('leave vchat');
+        })
         socket.on('remove peer', (peer_to_remove) => {
             //tear down connections to some disconnected or left peer
             if (peer_to_remove.peer_id in peer_media_elements) {
@@ -242,6 +248,7 @@
                 $('#user_vid_holder').append(new_user_vid);
                 var remote_media = $('#'+peer.vchat_id); //the video tag for the user
                 remote_media.attr("autoplay", "autoplay");
+                remote_media.bind('contextmenu', function() {return false;});
                 //remote_media.attr("controls", "");
                 peer_media_elements[peer.id] = remote_media;
                 remote_media[0].srcObject = event.stream;

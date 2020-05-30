@@ -329,7 +329,13 @@ partysocket.on('connection', (socket) => {
     socket.on('session description req', (config) => {
         partysocket.to(config.peer_id).emit('session description', {'peer_id': socket.id, 'session_description': config.session_description, 'vchat_id':socket.vchat_id});
     })
-
+    socket.on('leave vchat', () => {
+        delete parties[roomToConnect].inCall[socket.vchat_id]; //remove from list of users in video call
+        partysocket.to(parties[roomToConnect].callCode).emit('remove peer', {peer_id:socket.id, vchat_id:socket.vchat_id}); //tell everyone to disconnect from leaver
+        for (p in parties[roomToConnect].inCall) {
+            socket.emit('remove peer', {'peer_id':parties[roomToConnect].inCall[p].id, 'vchat_id':p});
+        }
+    });
     socket.on('disconnect', () => {
         console.log('user disconnected with socket id ' + socket.id);
         if (parties[roomToConnect]) { //if room still exists..
