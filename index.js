@@ -312,7 +312,7 @@ partysocket.on('connection', (socket) => {
     });
 
     // VIDEO CHAT
-    socket.on('join video call', () => {
+    socket.on('join video call', (data, acknowledge) => {
         console.log('user socketID ' + socket.id + ' joining video call');
         socket.join(parties[roomToConnect].callCode); //socket room for party's video chatters
         partysocket.to(parties[roomToConnect].callCode).emit('add peer', {'id':socket.id, 'name':parties[roomToConnect].members[socket.id], 'vchat_id':socket.vchat_id, 'offerer':true});
@@ -322,7 +322,8 @@ partysocket.on('connection', (socket) => {
         }
         parties[roomToConnect].inCall[socket.vchat_id] = socket;
         socket.emit('remove peer', {peer_id:socket.id, vchat_id:socket.vchat_id}); //tell joiner to remove themself. this removes the remotebox which is created unecessarily for themself in DOM.
-    });
+        acknowledge();
+    }, );
     socket.on('ping ice', (config) => {
         //config contains peer_id and ice_candidate
         //send ice candidate to the original caller
@@ -331,12 +332,13 @@ partysocket.on('connection', (socket) => {
     socket.on('session description req', (config) => {
         partysocket.to(config.peer_id).emit('session description', {'peer_id': socket.id, 'session_description': config.session_description, 'vchat_id':socket.vchat_id});
     })
-    socket.on('leave vchat', () => {
+    socket.on('leave vchat', (data, acknowledge) => {
         delete parties[roomToConnect].inCall[socket.vchat_id]; //remove from list of users in video call
         partysocket.to(parties[roomToConnect].callCode).emit('remove peer', {peer_id:socket.id, vchat_id:socket.vchat_id}); //tell everyone to disconnect from leaver
         for (p in parties[roomToConnect].inCall) {
             socket.emit('remove peer', {'peer_id':parties[roomToConnect].inCall[p].id, 'vchat_id':p});
         }
+        acknowledge();
     });
     socket.on('disconnect', () => {
         console.log('user disconnected with socket id ' + socket.id);

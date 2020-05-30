@@ -1,7 +1,8 @@
 <!doctype html>
 <html>
 <head>
-	<title>MediaRoom</title>
+    <title>MediaRoom</title>
+    <meta charset="UTF-8">
 	<!-- <link href="https://vjs.zencdn.net/7.7.6/video-js.css" rel="stylesheet" /> -->
 	<!-- <link href="https://unpkg.com/@videojs/themes@1/dist/forest/index.css" rel="stylesheet"> -->
 	<link href="styles/style.css" rel="stylesheet">
@@ -175,12 +176,8 @@
                 }
                 return; 
             }
-            navigator.getUserMedia = ( navigator.getUserMedia ||
-                navigator.webkitGetUserMedia ||
-                navigator.mozGetUserMedia ||
-                navigator.msGetUserMedia);
-            navigator.getUserMedia({'audio':true, 'video':true},
-                function(stream) { //user allowed access to mic/cam
+            navigator.mediaDevices.getUserMedia({'audio':true, 'video':true})
+                .then(function(stream) { //user allowed access to mic/cam
                     local_media_stream = stream;
                     var local_media = $('#selfVideo'); //the video tag for the remote user
                     local_media.bind('contextmenu', function() {return false;});
@@ -191,22 +188,49 @@
                     if(cb) {
                         cb();
                     }
-                },
-                function() { //access to mic/cam not granted
+                })
+                .catch(function() { //access to mic/cam not granted
                     console.log("Access denied for audio/video");
                 });
         }
         $('#user_vid_holder').on('click', '#joinVideoChat', function() {
             setup_local_media(function() { //get access to mic/cam
-                $('#joinVideoChat').replaceWith($('<button id="leaveVideoChat" class="btn btn-danger w-50" type="button">').text('Leave'));
-                socket.emit('join video call');
+                socket.emit('join video call', '', function() {
+                    //upon acknowledgement
+                    $('#joinVideoChat').replaceWith($('<button id="leaveVideoChat" class="btn btn-danger w-100" type="button">').text('Leave'));
+                    $('#selfVideoCard').after($('<button id="silenceAll" class="btn btn-warning w-100" type="button">').text('Silence All 🔈').data('silenced', false))
+                });
             });
         })
         $('#user_vid_holder').on('click', '#leaveVideoChat', function() {
-            $('#leaveVideoChat').replaceWith($('<button id="joinVideoChat" class="btn btn-success w-50" type="button">').text('Join Video Call'));
-            console.log(local_media_stream)
-            socket.emit('leave vchat');
+            //end a/v stream & sever link to video tag
+            var cnt = 0;
+            local_media_stream.getTracks().forEach(function(track) {
+                track.stop();
+                cnt++;
+                if (cnt==2) { //dumb way of waitign till all tracks are stopped. no native callback possible w forEach.
+                    local_media_stream = null;
+                }
+            });
+            $('#selfVideo')[0].srcObject = null;
+            socket.emit('leave vchat', '', function() {
+                //upon acknowledgement
+                $('#leaveVideoChat').replaceWith($('<button id="joinVideoChat" class="btn btn-success w-100" type="button">').text('Join'));
+                $('#silenceAll').remove();
+            });
         })
+        $('#user_vid_holder').on('click', '#silenceAll', function() {
+            if ($('#silenceAll').data('silenced')) {
+                //unmute all & label change
+                $('.user_vid').prop('muted', false);
+                $('#silenceAll').text('Silence All 🔈').data('silenced', false);
+            }
+            else {
+                //mute all & label change
+                $('.user_vid').prop('muted', true);
+                $('#silenceAll').text('Silence All 🔇').data('silenced', true);
+            }
+        });
         socket.on('remove peer', (peer_to_remove) => {
             //tear down connections to some disconnected or left peer
             if (peer_to_remove.peer_id in peer_media_elements) {
@@ -219,11 +243,6 @@
             delete peer_media_elements[peer_to_remove.peer_id];
             $('#'+peer_to_remove.vchat_id+'card').remove();
         });
-        // $('#leaveVideoChat').click(function() {
-        //     setup_local_media(function() { //get access to mic/cam
-        //         socket.emit('join video call');
-        //     });
-        // })
         socket.on('add peer', (peer) => {
             let peer_connection = new RTCPeerConnection(
                 {"iceServers": ICE_SERVERS},
@@ -243,9 +262,9 @@
                 }
             }
             peer_connection.onaddstream = function(event) {
-                let new_user_vid = ($('<div class="card text-white bg-dark mb-3 user_vid">').attr('id', peer.vchat_id+'card'))
+                let new_user_vid = ($('<div class="card text-white bg-dark mb-3">').attr('id', peer.vchat_id+'card'))
                     .append(
-                        $('<video class="card-img-top">').attr('id', peer.vchat_id) //mark w peer socket id
+                        $('<video class="card-img-top user_vid">').attr('id', peer.vchat_id) //mark w peer socket id
                     )
                     .append(
                         $('<div class="card-body">').text(peer.name)
@@ -333,7 +352,7 @@
             <h1 class="text-center">Menu</h1>
             <div class="nav nav-justified nav-tabs" id="nav-tab" role="tablist">
                 <a class="nav-item nav-link active" id="nav-chat-tab" data-toggle="tab" href="#nav-chat" role="tab" aria-controls="nav-chat" aria-selected="true">Chat</a>
-                <a class="nav-item nav-link" id="nav-users-tab" data-toggle="tab" href="#nav-users" role="tab" aria-controls="nav-users" aria-selected="false">Users</a>
+                <a class="nav-item nav-link" id="nav-users-tab" data-toggle="tab" href="#nav-users" role="tab" aria-controls="nav-users" aria-selected="false">Call</a>
                 <a class="nav-item nav-link" id="nav-q-tab" data-toggle="tab" href="#nav-q" role="tab" aria-controls="nav-q" aria-selected="false">Library</a>
             </div>
             <div class="tab-content h-100" id="nav-tabContent" style="overflow: hidden;">
@@ -367,24 +386,22 @@
                     <div class="d-flex flex-column scrollable mh-100">
                         <div id="user_vid_holder" class="pl-3 pr-3 pt-2 d-flex flex-column">
                             <h3>Video Call</h3>
-                            <button id="joinVideoChat" class="btn btn-success w-50" type="button">Join Video Call</button>
-                            <!-- <button id="leaveVideoChat" class="btn btn-danger w-50" type="button">Leave</button> -->
-                            <!-- <ul id="users" class="p-0"></ul> -->
-                            <div class="card text-white bg-dark mb-3" style="max-width: 18rem;">
+                            <button id="joinVideoChat" class="btn btn-success w-100" type="button">Join</button>
+                            <!-- <button id="leaveVideoChat" class="btn btn-danger w-100" type="button">Leave</button> -->
+                            <div id="selfVideoCard" class="card text-white bg-dark mb-3 mt-3" style="max-width: 18rem;">
                                 <video id="selfVideo" class="card-img-top"></video>
-                                <div class="card-footer">You</div>
+                                <div class="card-footer pt-1 pb-1">
+                                        <span>You</span>
+                                        <!-- <button class="btn btn-warning float-right">Mute</button> -->
+                                </div>
                             </div>
-                            <!-- <div class="card text-white bg-dark mb-3" style="max-width: 18rem;">
-                                <canvas id="reflection" class="card-img-top"></canvas>
-                                <div class="card-footer">NAME</div>
-                            </div> -->
                             <!-- <div class="card text-white bg-dark mb-3 user_item" style="max-width: 18rem;">
-                                <canvas id="preview" class="card-img-top"></canvas>
-                                <div class="card-footer">NAME</div>
+                                <video id="[peer id]" class="card-img-top"></video>
+                                <div class="card-body">NAME</div> //maybe change to card-footer for consistency
                             </div> -->
                         </div>
                         <div id="user_holder" class="pl-3 pr-3 d-flex flex-column">
-                            <h3>Here Now</h3>
+                            <h3>All Users</h3>
                         </div>
                     </div>
                 </div>
