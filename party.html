@@ -63,6 +63,11 @@
             console.log('sending update to server: ' + update);
             socket.emit('actionPerform', update);
         })
+        $('#syncButton').click(function() {
+            var update = [player.getCurrentTime(), player.paused];
+            console.log('sending update to server: ' + update);
+            socket.emit('actionPerform', update);
+        });
 		$('#nameEntry').submit(function(e){
 			e.preventDefault(); // prevents page reloading
 			socket.emit('name set', $('#n').val());
@@ -408,6 +413,7 @@
                                     </form>
                                 </div>
                             </div>
+                            <div><input id="syncButton" class="btn btn-warning w-100" type="button" value="Force Sync"></div>
                             <!-- <div class="card text-white bg-dark mb-3 queue_item" style="max-width: 18rem;">
                                 <div class="card-header">(1/3) Video Title</div>
                                 <div class="card-body">
