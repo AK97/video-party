@@ -20,7 +20,6 @@ html,body {
 
 #chats {
     list-style-type: none;
-    font-size: medium;
 }
 
 #users {
@@ -47,6 +46,6 @@ video, .vid_content, .mejs__container, .mejs__video {
     max-height: 100vh;
 }
 
-.queue_item {
+.queue_item, .user_item {
     max-width: 18rem;
 }

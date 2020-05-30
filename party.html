@@ -22,11 +22,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement.min.js" integrity="sha256-ad7GNjoOt24CrYL7Rxrzt4jZGZjPlOVGHfTha+u2n5s=" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement-and-player.min.js" integrity="sha256-RDugr3p+2CciPH+zwAjAK5/x1lG2SS6cJwN4sH2fYAg=" crossorigin="anonymous"></script>
 <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/renderers/youtube.min.js" integrity="sha256-1WGZILfyIxRAWj2F0Jc/FxxJM57GZvJ/Lg5X+m+8U5o=" crossorigin="anonymous"></script> -->
+<script src='https://meet.jit.si/external_api.js'></script>
 <script>
 	$(function () {
         var socket = io('/partyns');
         bsCustomFileInput.init(); //used by bootstrap
-        $('#welcome').modal(); //show modal
         var uploader = new SocketIOFileUpload(socket);
         uploader.listenOnSubmit($("#uploadButton")[0], $("#fileEntry")[0]);
         uploader.addEventListener("progress", function(event){
@@ -94,10 +94,18 @@
 			}
 		});
         socket.on('userPopulate', function(users) {
-            $('#users').empty();
+            //console.log(users)
+            $(".user_item").each(function(index) {
+                this.remove();
+            });
 			for (i in users) {
-				$('#users').append($('<li>').text(users[i]));
-			}
+                //console.log(i);
+                let new_user_item = $('<div class="card text-white bg-dark mb-3 user_item">')
+                    .append(
+                        $('<div class="card-body">').text(users[i])
+                    );
+				$('#user_holder').append(new_user_item);
+            }
         });
         socket.on('queue update', function(queue) {
             $(".queue_item").each(function(index) {
@@ -148,6 +156,161 @@
                 }
             });
         });
+
+        var local_media_stream = null;
+        var peers = {};
+        var peer_media_elements = {};
+        var ICE_SERVERS = [
+            {url:"stun:stun.l.google.com:19302"}
+        ];
+        function setup_local_media(cb, e) {
+            if (local_media_stream != null) {
+                if(cb) {
+                    cb();
+                }
+                return; 
+            }
+            navigator.getUserMedia = ( navigator.getUserMedia ||
+                navigator.webkitGetUserMedia ||
+                navigator.mozGetUserMedia ||
+                navigator.msGetUserMedia);
+            navigator.getUserMedia({'audio':true, 'video':true},
+                function(stream) { //user allowed access to mic/cam
+                    local_media_stream = stream;
+                    var local_media = $('#selfVideo'); //the video tag for the remote user
+                    local_media.attr("autoplay", "autoplay");
+                    local_media.attr("muted", "true"); //mute self video
+                    //local_media.attr("controls", "");
+                    local_media[0].srcObject = stream;
+                    if(cb) {
+                        cb();
+                    }
+                },
+                function() { //access to mic/cam not granted
+                    console.log("Access denied for audio/video");
+                });
+        }
+        $('#joinVideoChat').click(function() {
+            setup_local_media(function() { //get access to mic/cam
+                $('#joinVideoChat').remove();
+                socket.emit('join video call');
+            });
+        });
+        socket.on('remove peer', (peer_to_remove) => {
+            //tear down connections to some disconnected or left peer
+            if (peer_to_remove.peer_id in peer_media_elements) {
+                peer_media_elements[peer_to_remove.peer_id].remove();
+            }
+            if (peer_to_remove.peer_id in peers) {
+                peers[peer_to_remove.peer_id].close();
+            }
+            delete peers[peer_to_remove.peer_id];
+            delete peer_media_elements[peer_to_remove.peer_id];
+            $('#'+peer_to_remove.vchat_id+'card').remove();
+        });
+        // $('#leaveVideoChat').click(function() {
+        //     setup_local_media(function() { //get access to mic/cam
+        //         socket.emit('join video call');
+        //     });
+        // })
+        socket.on('add peer', (peer) => {
+            let peer_connection = new RTCPeerConnection(
+                {"iceServers": ICE_SERVERS},
+                {"optional": [{"DtlsSrtpKeyAgreement": true}]}
+            );
+            peers[peer.id] = peer_connection;
+            peer_connection.onicecandidate = function(event) {
+                if (event.candidate) {
+                    //initiate a call to everyone already in the call
+                    socket.emit('ping ice', {
+                        'peer_id': peer.id, 
+                        'ice_candidate': {
+                            'sdpMLineIndex': event.candidate.sdpMLineIndex,
+                            'candidate': event.candidate.candidate
+                        }
+                    });
+                }
+            }
+            peer_connection.onaddstream = function(event) {
+                let new_user_vid = ($('<div class="card text-white bg-dark mb-3 user_vid">').attr('id', peer.vchat_id+'card'))
+                    .append(
+                        $('<video class="card-img-top">').attr('id', peer.vchat_id) //mark w peer socket id
+                    )
+                    .append(
+                        $('<div class="card-body">').text(peer.name)
+                    );
+                $('#user_vid_holder').append(new_user_vid);
+                var remote_media = $('#'+peer.vchat_id); //the video tag for the user
+                remote_media.attr("autoplay", "autoplay");
+                //remote_media.attr("controls", "");
+                peer_media_elements[peer.id] = remote_media;
+                remote_media[0].srcObject = event.stream;
+            }
+            peer_connection.addStream(local_media_stream)
+
+            //we are in the call being asked to add a peer.
+            //joiner sends a request, sever tells us to add a peer
+            //we create the offer for joiner (peer.id) to accept
+            //unless we're told not to, which means we are the joiner
+            if (peer.offerer) {
+                peer_connection.createOffer(
+                    function (local_description) { 
+                        console.log("Local offer description is: ", local_description);
+                        peer_connection.setLocalDescription(local_description,
+                            function() { 
+                                socket.emit('session description req', 
+                                    {'peer_id': peer.id, 'session_description': local_description});
+                                console.log("Offer setLocalDescription succeeded"); 
+                            },
+                            function() { Alert("Offer setLocalDescription failed!"); }
+                        );
+                    },
+                    function (error) {
+                        console.log("Error sending offer: ", error);
+                    }
+                );
+            }
+        });
+        socket.on('pong ice', function(config) {
+            //config contains peer_id and ice_candidate
+            console.log('ponging ice')
+            peers[config.peer_id].addIceCandidate(new RTCIceCandidate(config.ice_candidate));
+        });
+        socket.on('session description', (config) => {
+            var peer_id = config.peer_id;
+            var peer = peers[peer_id];
+            var remote_description = config.session_description;
+
+            var desc = new RTCSessionDescription(remote_description);
+            var stuff = peer.setRemoteDescription(desc, 
+                function() {
+                    console.log("setRemoteDescription succeeded");
+                    if (remote_description.type == "offer") {
+                        console.log("Creating answer");
+                        peer.createAnswer(
+                            function(local_description) {
+                                console.log("Answer description is: ", local_description);
+                                peer.setLocalDescription(local_description,
+                                    function() { 
+                                        socket.emit('session description req', 
+                                            {'peer_id': peer_id, 'session_description': local_description});
+                                        console.log("Answer setLocalDescription succeeded");
+                                    },
+                                    function() { Alert("Answer setLocalDescription failed!"); }
+                                );
+                            },
+                            function(error) {
+                                console.log("Error creating answer: ", error);
+                                console.log(peer);
+                            });
+                    }
+                },
+                function(error) {
+                    console.log("setRemoteDescription error: ", error);
+                }
+            );
+            console.log("Description Object: ", desc);
+        })
 	});
 </script>
 
@@ -173,7 +336,6 @@
                                     </div>
                                 </form>
                             </div>
-                            
                             <div class="input-group mb-1 mt-1">
                                 <form id="chatInput" class="input-group">
                                     <input id="m" type="text" class="form-control" placeholder="Send a message" autocomplete="off" minlength="1">
@@ -190,17 +352,33 @@
                     </div>
                 </div>
                 <div class="tab-pane h-100 fade" id="nav-users" role="tabpanel" aria-labelledby="nav-users-tab">
-                    <div class="d-flex flex-column-reverse mh-100">
-                        <div class="pl-3 pt-2 scrollable d-flex flex-column">
-                            <h3>Here Now:</h3>
-                            <ul id="users" class="p-0">
-                            </ul>
+                    <div class="d-flex flex-column scrollable mh-100">
+                        <div id="user_vid_holder" class="pl-3 pr-3 pt-2 d-flex flex-column">
+                            <h3>Video Call</h3>
+                            <button id="joinVideoChat" class="btn btn-success w-50" type="button">Join Video Call</button>
+                            <!-- <button id="leaveVideoChat" class="btn btn-danger w-50" type="button">Leave</button> -->
+                            <!-- <ul id="users" class="p-0"></ul> -->
+                            <div class="card text-white bg-dark mb-3" style="max-width: 18rem;">
+                                <video id="selfVideo" class="card-img-top"></video>
+                                <div class="card-footer">You</div>
+                            </div>
+                            <!-- <div class="card text-white bg-dark mb-3" style="max-width: 18rem;">
+                                <canvas id="reflection" class="card-img-top"></canvas>
+                                <div class="card-footer">NAME</div>
+                            </div> -->
+                            <!-- <div class="card text-white bg-dark mb-3 user_item" style="max-width: 18rem;">
+                                <canvas id="preview" class="card-img-top"></canvas>
+                                <div class="card-footer">NAME</div>
+                            </div> -->
+                        </div>
+                        <div id="user_holder" class="pl-3 pr-3 d-flex flex-column">
+                            <h3>Here Now</h3>
                         </div>
                     </div>
                 </div>
                 <div class="tab-pane h-100 fade" id="nav-q" role="tabpanel" aria-labelledby="nav-q-tab">
                     <div class="d-flex flex-column-reverse mh-100">
-                        <div id="queue_holder" class="pl-3 pt-2 scrollable d-flex flex-column">
+                        <div id="queue_holder" class="pl-3 pr-3 pt-2 scrollable d-flex flex-column">
                             <div class="card text-white bg-info mb-3" style="max-width: 18rem;">
                                 <div class="card-header"><h4 class="m-0">Add to Library</h4></div>
                                 <div class="card-body">

@@ -25,6 +25,11 @@ function generatePartyCode() {
 		'vp' + Math.random().toString(36).substr(2, 6)
 	);
 }
+function generateID() {
+    return (
+		Math.random().toString(36).substr(2, 8)
+	);
+}
 
 function getYouTubeVideoTitle(video_url_id) {
     let vid = 'https://www.youtube.com/watch?' + video_url_id;
@@ -75,6 +80,8 @@ class Party {
         this.message_log.push('Party Code: ' + this.code);
         this.currentStatus = [0,true];
         this.queue = [];
+        this.callCode = generatePartyCode(); //socket room for video call
+        this.inCall = {}; //users in the call {vchat_id:socket}
     }
     playNow(queue_item) {
         this.nowPlaying = queue_item;
@@ -105,7 +112,6 @@ app.use(sessionDef);
 
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
-    
 });
 
 app.get('/vp*', (req, res) => {
@@ -212,13 +218,14 @@ partysocket.on('connection', (socket) => {
     console.log('user reached a party page with socket ID ' + socket.id)
     let attemptedConnect = socket.handshake.headers.referer.toString(); //not for use beyond next line
     let roomToConnect = attemptedConnect.split('/').pop();
-    
+    socket.vchat_id = generateID(); //assign a vchat_id to the user.
+                                    //eventually used as DOM elem id's, so removing some of the characters that socket normally puts in id's.
     //join chat room
     socket.join(roomToConnect);
     if (parties[roomToConnect]) {
         parties[roomToConnect].members[socket.id] = "Anonymous";
         socket.emit('messagePopulate', parties[roomToConnect].message_log); //give joiner complete message history
-        partysocket.to(roomToConnect).emit('userPopulate', (Object.values(parties[roomToConnect].members))); //update everyone in the room's userlist
+        partysocket.in(roomToConnect).emit('userPopulate', (parties[roomToConnect].members)); //update everyone in the room's userlist
         socket.emit('queue update', parties[roomToConnect].queue); //give joiner queue
         if (parties[roomToConnect].nowPlaying) { //if there's something playing...
             console.log(parties[roomToConnect].nowPlaying.info());
@@ -241,7 +248,7 @@ partysocket.on('connection', (socket) => {
         socket.emit('upload success', event.file.name+' has been added to the library')
         parties[roomToConnect].queue.push(new QueueItem('mp4 video', event.file.pathName, event.file.name, parties[roomToConnect].members[socket.id], roomToConnect));
         //refresh everyone's queues
-        partysocket.to(roomToConnect).emit('queue update', parties[roomToConnect].queue);
+        partysocket.in(roomToConnect).emit('queue update', parties[roomToConnect].queue);
     });
 
     uploader.on("error", function(event){
@@ -261,7 +268,7 @@ partysocket.on('connection', (socket) => {
                         .then(video => { //once we've gotten the title we can add this to the queue
                             console.log('added YT vid has title: ', video.title);
                             parties[roomToConnect].queue.push(new QueueItem('Youtube video', youtube_url[0], video.title, parties[roomToConnect].members[socket.id], roomToConnect));
-                            partysocket.to(roomToConnect).emit('queue update', parties[roomToConnect].queue);
+                            partysocket.in(roomToConnect).emit('queue update', parties[roomToConnect].queue);
                         })
                 }
                 else {
@@ -273,14 +280,13 @@ partysocket.on('connection', (socket) => {
             }
         }
     });
-
     socket.on('play request', (q) => {
         console.log('player request:')
         console.log(parties[roomToConnect].queue[q].typeLabel)
         if (parties[roomToConnect].queue[q].typeLabel == 'video/mp4' || parties[roomToConnect].queue[q].typeLabel == 'video/youtube') {
             parties[roomToConnect].playNow(parties[roomToConnect].queue[q]);
             console.log(parties[roomToConnect].nowPlaying.info());
-            partysocket.to(roomToConnect).emit('start playing', parties[roomToConnect].nowPlaying.info());
+            partysocket.in(roomToConnect).emit('start playing', parties[roomToConnect].nowPlaying.info());
         }
         console.log(parties[roomToConnect].nowPlaying.filepath);
     });
@@ -292,21 +298,45 @@ partysocket.on('connection', (socket) => {
     socket.on('name set', (nick) => {
         console.log('user ' +socket.id+ ' sets name to ' + nick); //print the chat message event
         parties[roomToConnect].members[socket.id] = nick;
-        partysocket.to(roomToConnect).emit('userPopulate', (Object.values(parties[roomToConnect].members))); //update everyone in the room's userlist
+        partysocket.in(roomToConnect).emit('userPopulate', (parties[roomToConnect].members)); //update everyone in the room's userlist
     });
     socket.on('chat sent', (msg) => {
         if (msg.trim().length !== 0) {
             console.log('message sent by ' + socket.id + ': ' + msg); //print the chat message event
             formatted_msg = currentTime() + parties[roomToConnect].members[socket.id] + ': ' + msg;
             parties[roomToConnect].message_log.push(formatted_msg);
-            partysocket.to(roomToConnect).emit('chat dist', formatted_msg); //send message to everyone including sender
+            partysocket.to(roomToConnect).emit('chat dist', formatted_msg); //send message to everyone except sender
         }
     });
+
+    // VIDEO CHAT
+    socket.on('join video call', () => {
+        console.log('user socketID ' + socket.id + ' joining video call');
+        socket.join(parties[roomToConnect].callCode); //socket room for party's video chatters
+        partysocket.to(parties[roomToConnect].callCode).emit('add peer', {'id':socket.id, 'name':parties[roomToConnect].members[socket.id], 'vchat_id':socket.vchat_id, 'offerer':true});
+        //let currently_in_call = parties[roomToConnect].inCall; //list of sockets already in the call
+        for (var p in parties[roomToConnect].inCall) {
+            socket.emit('add peer', {'id':parties[roomToConnect].inCall[p].id, 'name':parties[roomToConnect].members[parties[roomToConnect].inCall[p].id], 'vchat_id':p, 'offerer':false});
+        }
+        parties[roomToConnect].inCall[socket.vchat_id] = socket;
+        socket.emit('remove peer', {peer_id:socket.id, vchat_id:socket.vchat_id}); //tell joiner to remove themself. this removes the remotebox which is created unecessarily for themself in DOM.
+    });
+    socket.on('ping ice', (config) => {
+        //config contains peer_id and ice_candidate
+        //send ice candidate to the original caller
+        partysocket.to(config.peer_id).emit('pong ice',{'peer_id': socket.id, 'ice_candidate': config.ice_candidate, 'vchat_id':socket.vchat_id});
+    })
+    socket.on('session description req', (config) => {
+        partysocket.to(config.peer_id).emit('session description', {'peer_id': socket.id, 'session_description': config.session_description, 'vchat_id':socket.vchat_id});
+    })
+
     socket.on('disconnect', () => {
         console.log('user disconnected with socket id ' + socket.id);
         if (parties[roomToConnect]) { //if room still exists..
             delete parties[roomToConnect].members[socket.id]; //remove from list of users currently here
-            partysocket.to(roomToConnect).emit('userPopulate', (Object.values(parties[roomToConnect].members))); //update everyone in the room's userlist
+            delete parties[roomToConnect].inCall[socket.vchat_id]; //remove from list of users in video call
+            partysocket.to(parties[roomToConnect].callCode).emit('remove peer', {peer_id:socket.id, vchat_id:socket.vchat_id}); //disconnect from anybody in video call
+            partysocket.to(roomToConnect).emit('userPopulate', (parties[roomToConnect].members)); //update everyone in the room's userlist
         }
     })
 });
