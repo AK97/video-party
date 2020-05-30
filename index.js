@@ -116,6 +116,7 @@ app.get('/', (req, res) => {
 
 app.get('/vp*', (req, res) => {
     let attempt = req.path.substr(1);
+    console.log('attempt: ' + attempt)
     if (Object.keys(parties).includes(attempt)) {
         req.session.roomToConnect = attempt;
         res.sendFile(__dirname + '/party.html');
@@ -216,9 +217,9 @@ indexsocket.on('connection', (socket) => {
 
 partysocket.on('connection', (socket) => {
     console.log('user reached a party page with socket ID ' + socket.id)
-    let attemptedConnect = socket.handshake.headers.referer.toString(); //not for use beyond next line
-    console.log('attemptedConnect: '+attemptedConnect);
-    let roomToConnect = attemptedConnect.split('/').pop();
+    let attemptedConnect = socket.handshake.headers.referer.toString(); //finding the room idd
+    let roomToConnect = attemptedConnect.split('/').pop().substr(0,8);
+    console.log(socket.id + ' is connecting to room w/ID: ' + roomToConnect);
     socket.vchat_id = generateID(); //assign a vchat_id to the user.
                                     //eventually used as DOM elem id's, so removing some of the characters that socket normally puts in id's.
     //join chat room
