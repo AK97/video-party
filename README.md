@@ -1,5 +1,5 @@
 # Video Party
-Video Party is the project name for MediaRoom, which can be found at mediaroom.live
+Video Party is the project name for MediaRoom, which can be found at mediaroom.live  
 MediaRoom is a service for watching videos and listening to music together with friends. It synchronizes all users with each other to provide a simultaneous media experience. It features text and video chatting as well as a library/queue system.
 
 ## Patch Notes
