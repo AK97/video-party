@@ -288,7 +288,7 @@ partysocket.on('connection', (socket) => {
                 }
             }
             else {
-                console.log('Invalid (non-YT) Link Error: ', link;
+                console.log('Invalid (non-YT) Link Error: ', link);
                 socket.emit('link error', 'Sorry. Only YouTube videos are supported at this time.');
             }
         }
