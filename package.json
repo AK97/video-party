@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "description": "video watcher and file streamer for simultaneous listening and viewing",
   "dependencies": {
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-fileupload": "^1.1.7-alpha.3",
     "express-session": "^1.17.1",
     "simple-youtube-api": "^5.2.1",
